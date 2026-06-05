@@ -6,11 +6,11 @@ import { Alert, Box, Collapse, FormHelperText, Link, MenuItem, MenuList, useThem
 import {
     BoolField, DisplayField, Field, FieldProps, Form, MultiSelectField, NumberField, SelectField, StringField
 } from '@hfs/mui-grid-form'
-import { apiCall, UseApi } from './api'
+import { apiCall, UseApi, useApiEx } from './api'
 import {
-    basename, defaultPerms, formatBytes, formatTimestamp, isWhoObject, newDialog, objSameKeys, pathEncode,
-    onlyTruthy, prefix, VfsPerms, wantArray, Who, WhoObject, matches, xlate, md, Callback, MASK_IN_TESTS,
-    useRequestRender, splitAt, IMAGE_FILEMASK, copyTextToClipboard, normalizeHost, CFG, try_, WHO_ANY_ACCOUNT,
+    basename, defaultPerms, formatBytes, formatTimestamp, isWhoObject, newDialog, useRequestRender, try_, pathEncode,
+    onlyTruthy, prefix, VfsPerms, wantArray, WhoVfs, WhoObject, matches, xlate, md, Callback, copyTextToClipboard,
+    normalizeHost, splitAt, IMAGE_FILEMASK, CFG, MASK_IN_TESTS, WHO_ANY_ACCOUNT, WHO_ADMIN, WHO_NO_ONE, WHO_ANYONE,
 } from './misc'
 import { isModifiedConfig } from './AccountForm'
 import { Btn, Flex, IconBtn, LinkBtn, propsForModifiedValues, useBreakpoint, wikiLink } from './mui'
@@ -23,12 +23,13 @@ import {
     Check, ContentCopy, ContentCut, ContentPaste, Delete, Edit, QrCode2, Save, RestartAlt
 } from '@mui/icons-material'
 import { moveVfs } from './VfsTree'
-import QrCreator from 'qr-creator';
+import QrCreator from 'qr-creator'
 import { AddVfsBtn } from './VfsMenuBar'
 import { SYS_ICONS } from '@hfs/frontend/src/sysIcons'
 import { hIcon } from '@hfs/frontend/src/misc'
 import { TextEditorField } from './TextEditor'
-import { Account, account2icon } from './AccountsPage'
+import { account2icon } from './AccountsPage'
+import apiAccounts from '../../src/api.accounts'
 
 const ACCEPT_LINK = "https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/accept"
 
@@ -36,15 +37,15 @@ interface FileFormProps {
     file: VfsNodeAdmin
     addToBar?: ReactNode
     statusApi: UseApi
-    accounts: Account[]
+    accountsApi: AccountsApi
     saved: Callback
     isSideBreakpoint: boolean
 }
-export default function FileForm({ file, addToBar, statusApi, accounts, saved, isSideBreakpoint }: FileFormProps) {
+export default function FileForm({ file, addToBar, statusApi, accountsApi, saved, isSideBreakpoint }: FileFormProps) {
     const { parent, children, isRoot, byMasks, ...rest } = file
     const [values, setValues] = useState(rest)
     useEffect(() => {
-        setValues(Object.assign(objSameKeys(defaultPerms, () => null), rest))
+        setValues(Object.assign(_.mapValues(defaultPerms, () => null), rest))
     }, [file]) //eslint-disable-line
 
     const inheritedDefault = useMemo(() => {
@@ -69,7 +70,7 @@ export default function FileForm({ file, addToBar, statusApi, accounts, saved, i
     const barColors = useDialogBarColors()
     const { movingFile } = useSnapState()
 
-    const needSourceWarning = !hasSource && h(Box, { color: 'warning.main', component: 'span' }, "Works only on folders with disk source! ")
+    const needSourceWarning = !hasSource && h(Box as any, { sx: { color: 'warning.main' }, component: 'span' }, "Works only on folders with disk source! ")
     const show: Record<keyof VfsPerms, boolean> = {
         can_read: !isLink,
         can_see: true,
@@ -230,17 +231,18 @@ export default function FileForm({ file, addToBar, statusApi, accounts, saved, i
         while (typeof inherit === 'string' && _.get(show, inherit) === false) // is 'inherit' referring to another permission that is not displayed?
             inherit = _.get(values, inherit)
                 // non-permission who values (like WHO_ANY_ACCOUNT) are not valid keys for inherited lookup
-                ?? (inherit !== WHO_ANY_ACCOUNT ? getInheritedPerms(file)?.[inherit] : undefined)
+                ?? (inherit !== WHO_ANY_ACCOUNT && inherit !== WHO_ADMIN ? getInheritedPerms(file)?.[inherit] : undefined)
                 ?? _.get(defaultPerms, inherit)! // then show its value instead
         return {
             comp: WhoField,
             k: perm, sm: 6, lg: 12, xl: 4,
-            parent, accounts, helperText, isDir,
+            parent, accountsApi, helperText, isDir,
             otherPerms: others.map(x => ({ value: x, label: who2desc(x) })),
             label: "Who can " + perm2word(perm),
             inherit,
             byMasks: byMasks?.[perm],
-            fromField: (v?: Who) => v ?? null,
+            offerInheritance: true,
+            fromField: (v?: WhoVfs) => v ?? null,
             ...props
         }
     }
@@ -251,29 +253,42 @@ function perm2word(perm: string) {
     return xlate(perm.split('_')[1], { read: 'download', archive: 'zip', list: 'access list' })
 }
 
-interface WhoFieldProps extends FieldProps<Who | undefined> {
-    accounts: Account[],
-    otherPerms: any[],
+type AccountsApi = ReturnType<typeof useAccountsApi>
+export function useAccountsApi() {
+    return useApiEx<typeof apiAccounts.get_accounts>('get_accounts', {}, {
+        onResponse(_res, data) {
+            if (!data) return
+            data.list = _.sortBy(data.list, 'username')
+        }
+    })
+}
+
+interface WhoFieldProps extends FieldProps<WhoVfs | undefined> {
+    accountsApi?: AccountsApi,
+    otherPerms?: any[],
     isChildren?: boolean,
     isDir: boolean
     contentText?: string
 }
-function WhoField({ value, onChange, parent, inherit, accounts, helperText, otherPerms, byMasks,
-        hideValues, isChildren, isDir, contentText="folder content", setApi, ...rest }: WhoFieldProps): ReactElement {
+export function WhoField({ value, onChange, parent, inherit, accountsApi, helperText, otherPerms, byMasks,
+        hideValues, isChildren, isDir, contentText="folder content", setApi, offerInheritance, ...rest }: WhoFieldProps): ReactElement {
     const defaultLabel = who2desc(byMasks ?? inherit)
         + prefix(' (', byMasks !== undefined ? "from masks" : parent !== undefined ? "as parent folder" : "default", ')')
     const objectMode = isWhoObject(value)
     const thisValue = objectMode ? value.this : value
+    accountsApi ??= useAccountsApi() // it's important that the "accounts" prop is stable in the truthy sense
+    const accounts = accountsApi?.data?.list
 
     const options = useMemo(() =>
         onlyTruthy([
-            { value: null, label: defaultLabel },
-            { value: true },
-            { value: false },
-            { value: '*' },
-            ...otherPerms,
+            offerInheritance && { value: null, label: defaultLabel },
+            { value: WHO_NO_ONE },
+            { value: WHO_ANY_ACCOUNT },
+            { value: WHO_ADMIN },
+            { value: WHO_ANYONE },
+            ...otherPerms || [],
             { value: [], label: "Select accounts" },
-        ].map(x => !hideValues?.includes(x.value)
+        ].map(x => x && !hideValues?.includes(x.value)
             && { label: who2desc(x.value), ...x })), // default label
         [inherit, parent, thisValue, ...wantArray(hideValues)])
 
@@ -312,7 +327,7 @@ function WhoField({ value, onChange, parent, inherit, accounts, helperText, othe
         !isChildren && h(Collapse, { in: objectMode, timeout },
             h(WhoField, {
                 label: "Permission for " + contentText,
-                parent, inherit, accounts, otherPerms, isDir,
+                parent, inherit, accountsApi, otherPerms, isDir,
                 value: objectMode ? value?.children : undefined,
                 isChildren: true,
                 hideValues: [thisValue ?? inherit, thisValue],
@@ -332,10 +347,11 @@ function WhoField({ value, onChange, parent, inherit, accounts, helperText, othe
 function who2desc(who: any) {
     return who === false ? "No one"
         : who === true ? "Anyone"
-            : who === '*' ? "Any logged-in account"
-                : Array.isArray(who) ? who.join(', ')
-                    : typeof who === 'string' ? `As "can ${perm2word(who)}"`
-                        : "*UNKNOWN*" + JSON.stringify(who)
+            : who === WHO_ANY_ACCOUNT ? "Any logged-in account"
+                : who === WHO_ADMIN ? "Any admin"
+                    : Array.isArray(who) ? who.join(', ')
+                        : typeof who === 'string' ? `As "can ${perm2word(who)}"`
+                            : "*UNKNOWN*" + JSON.stringify(who)
 }
 
 interface LinkFieldProps extends FieldProps<string> {
@@ -380,7 +396,7 @@ function LinkField({ value, statusApi }: LinkFieldProps) {
             target: 'frontend',
         }, link)
     ), [link])
-    return h(Box, { display: 'flex' },
+    return h(Box, { sx: { display: 'flex' } },
         !baseHost ? "Invalid baseUrl" : !urls ? 'error' : // check data is ok
         h(DisplayField, {
             label: "Link",
@@ -425,9 +441,9 @@ function LinkField({ value, statusApi }: LinkFieldProps) {
                 fill: color, // foreground color
                 background: null, // color or null for transparent
                 size: 300 // in pixels
-            }, canvas);
+            }, canvas)
         } catch (error) {
-            console.error('Error generating QR code:', error);
+            console.error('Error generating QR code:', error)
         }
     }
 
@@ -453,8 +469,8 @@ export async function changeBaseUrl() {
                 const proto = new URL(v || urls[0]).protocol + '//'
                 const host = urls.includes(v) ? '' : v.slice(proto.length)
                 const check = h(Check, { sx: { ml: 2 } })
-                return h(Box, { display: 'flex', flexDirection: 'column' },
-                    h(Box, { mb: 2 }, "Choose a main address for your links"),
+                return h(Box, { sx: { display: 'flex', flexDirection: 'column' } },
+                    h(Box, { sx: { mb: 2 } }, "Choose a main address for your links"),
                     h(MenuList, {},
                         h(MenuItem, {
                             selected: !v,
@@ -481,7 +497,7 @@ export async function changeBaseUrl() {
                         }),
                         sx: { mt: 2 }
                     }),
-                    h(Box, { mt: 2, textAlign: 'right' },
+                    h(Box, { sx: { mt: 2, textAlign: 'right' } },
                         h(Btn, {
                             icon: Save,
                             children: "Save",

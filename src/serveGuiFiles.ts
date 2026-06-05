@@ -11,7 +11,7 @@ import { authApis } from './api.auth'
 import { ApiError } from './apiMiddleware'
 import { join, extname, sep } from 'path'
 import {
-    CFG, debounceAsync, formatBytes, FRONTEND_OPTIONS, isPrimitive, newObj, objSameKeys, onlyTruthy, parseFile,
+    CFG, debounceAsync, formatBytes, FRONTEND_OPTIONS, isPrimitive, newObj, onlyTruthy, parseFile,
     enforceStarting, statWithTimeout, shortenAgent
 } from './misc'
 import { favicon, title } from './adminApis'
@@ -42,8 +42,7 @@ function serveStatic(uri: string): Koa.Middleware {
             return ctx.status = HTTP_METHOD_NOT_ALLOWED
         const serveApp = shouldServeApp(ctx)
         const fullPath = join(__dirname, '..', folder, serveApp ? '/index.html': ctx.path)
-        const content = await parseFile(fullPath,
-            raw => serveApp || !raw.length ? raw : adjustBundlerLinks(ctx, uri, raw) )
+        const content = await parseFile(fullPath, raw => serveApp || !raw.length ? raw : adjustBundlerLinks(ctx, uri, raw), 1000)
             .catch(e => {
                 if (e?.code !== 'ENOENT') // not supposed to happen, and yet a user reported a strange behavior
                     console.error(`serveStatic/parseFile: ${String(e)}`)
@@ -131,7 +130,7 @@ async function treatIndex(ctx: Koa.Context, filesUri: string, body: string) {
                     ${getSection('htmlHead')}`}
                 `
             function iconsToObj(icons: CustomizedIcons, pre='') {
-                return icons && objSameKeys(icons, (v, k) => ctx.state.revProxyPath + ICONS_URI + pre + k)
+                return icons && _.mapValues(icons, (v, k) => ctx.state.revProxyPath + ICONS_URI + pre + k)
             }
 
             if (isBody && isOpen)
@@ -172,7 +171,7 @@ async function treatIndex(ctx: Koa.Context, filesUri: string, body: string) {
                 v = ctx.state.revProxyPath + v
         }
         else if (type === 'array' && Array.isArray(v))
-            v = v.map(x => objSameKeys(x, (xv, xk) => adjustValueByConfig(xv, cfg.fields[xk])))
+            v = v.map(x => _.mapValues(x, (xv, xk) => adjustValueByConfig(xv, cfg.fields[xk])))
         return v
     }
 
@@ -190,6 +189,7 @@ function serveProxied(port: string | undefined, uri: string) { // used for devel
     let proxy: Koa.Middleware
     import('koa-better-http-proxy').then(lib => // dynamic import to avoid having this in final distribution
         proxy = lib.default('127.0.0.1:'+port, {
+            parseReqBody: false, // the dev GUI proxy serves app/assets, so avoid koa-better-http-proxy trying to reread ctx.req
             proxyReqPathResolver: (ctx) =>
                 shouldServeApp(ctx) ? '/' : ctx.path,
             userResDecorator(res, data, ctx) {
