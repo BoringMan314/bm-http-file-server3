@@ -22,3 +22,12 @@ i18n-wip/
 build_win10.bat
 .server_pid
 /*.zip
+# local i18n dev scripts (not shipped)
+scripts/audit-*.js
+scripts/patch-*.js
+scripts/apply-*.js
+scripts/merge-fork-i18n-to-lang.js
+scripts/reapply-admin-i18n.js
+scripts/scan-untranslated-ui.js
+scripts/fix-i18n-syntax.js
+scripts/_verify-key.js
