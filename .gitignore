@@ -16,3 +16,9 @@ tests/config.yaml.bak
 /blob-report/
 /playwright/.cache/
 e2e/frontend.spec.ts-snapshots*
+logs/
+i18n-wip/
+.npmrc
+build_win10.bat
+.server_pid
+/*.zip
