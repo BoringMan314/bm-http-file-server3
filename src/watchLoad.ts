@@ -5,6 +5,7 @@ import fs from 'fs/promises'
 import { readFileWithBusyRetry } from './util-files'
 import { debounceAsync } from './debounceAsync'
 import { BetterEventEmitter } from './events'
+import { ct } from './serverI18n'
 
 type WatchLoadCanceller = () => void
 
@@ -59,7 +60,7 @@ export function watchLoad(path:string, parser:(data:any)=>void|Promise<void>, { 
             await save.flush() // apply pending saves first
             const text = await readFileWithBusyRetry(path).catch(e => { // ignore read errors
                 if (e.code === 'EPERM')
-                    console.error("Missing permissions on file", path) // warn user, who could be clueless about this problem
+                    console.error(ct('missingPermissions'), path) // warn user, who could be clueless about this problem
                 // keep the last good content on transient read failures so we don't apply accidental "empty file" state
                 if (e.code === 'ENOENT')
                     return ''
@@ -69,12 +70,12 @@ export function watchLoad(path:string, parser:(data:any)=>void|Promise<void>, { 
                 return
             last = text
             emitter.emit('change', last)
-            console.debug('Loaded', path)
+            console.debug(ct('loaded'), path)
             unwatch(); install() // reinstall, as the original file could have been renamed. We watch by the name.
             await parser(text)
         }
         catch(e) {
-            console.error("Error loading", path, String(e))
+            console.error(ct('errorLoading'), path, String(e))
         }
         finally {
             doing = false

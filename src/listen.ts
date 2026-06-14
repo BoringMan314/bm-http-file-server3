@@ -25,6 +25,7 @@ import { argv } from './argv'
 import { consoleHint } from './consoleLog'
 import { onProcessExit, quitting } from './first'
 import { fileAttrDb } from './fileAttr'
+import { ct } from './serverI18n'
 
 interface ServerExtra { name: string, error?: string, busy?: Promise<string> }
 let httpSrv: undefined | http.Server & ServerExtra
@@ -64,7 +65,7 @@ const considerHttp = debounceAsync(async () => {
     if (port === PORT_DISABLED) return
     if (!await startServer(httpSrv, { port, host }))
         if (port !== 80)
-            return consoleHint(`try specifying a different port, enter this command: config ${portCfg.key()} 1080`)
+            return consoleHint(ct('trySpecifyingDifferentPort', { key: portCfg.key() }))
         else if (!await startServer(httpSrv, { port: 8080, host }))
             return
     httpSrv.on('connection', newConnection)
@@ -86,18 +87,18 @@ export function openAdmin() {
         if (!a || typeof a === 'string') continue
         const i = listenInterface.get()
         // open() will fail with ::1, don't know why, as my browser correctly opens the resulting url
-        const hostname = i === '::1' || i in genericInterfaceNames ? 'localhost' : i
+        const hostname = i === '::1' || i === '0.0.0.0' || i === '::' || i === '' ? 'localhost' : i
         const baseUrl = `${srv!.name}://${hostname}:${a.port}`
         open(baseUrl + ADMIN_URI, { wait: true}).catch(async e => {
             console.debug(String(e))
-            console.warn("Cannot launch browser on this machine >PLEASE< open your browser and reach one of these (you may need a different address)",
+            console.warn(ct('cannotLaunchBrowser'),
                 ...Object.values(await getUrls()).flat().map(x => '\n - ' + x + ADMIN_URI))
             if (! anyAccountCanLoginAdmin())
-                consoleHint(`you can enter this command: create-admin YOUR_PASSWORD`)
+                consoleHint(ct('createAdminHint'))
         })
         return true
     }
-    console.log("OpenAdmin failed")
+    console.log(ct('openAdminFailed'))
 }
 
 export function getCertObject() {
@@ -132,7 +133,7 @@ const considerHttps = debounceAsync(async () => {
             if (certObj) {
                 const cn = certObj.subject?.CN
                 if (cn)
-                    console.log("Certificate loaded for", certObj.altNames?.join(' + ') || cn)
+                    console.log(ct('certificateLoadedFor'), certObj.altNames?.join(' + ') || cn)
                 const now = new Date()
                 const from = new Date(certObj.validFrom)
                 const to = new Date(certObj.validTo)
@@ -159,7 +160,7 @@ const considerHttps = debounceAsync(async () => {
     catch(e: any) {
         httpsSrv ||= Object.assign(https.createServer({}), { name: 'https' }) // a dummy container, in case creation failed because of certificate errors
         httpsSrv.error = "bad private key or certificate"
-        console.error("Failed to create https server: check your private key and certificate", e.message)
+        console.error(ct('failedCreateHttps'), e.message)
         return
     }
     httpsSrv.on('connection', newConnection) // this event is emitted as soon as the tcp layer is connected
@@ -193,14 +194,12 @@ function load(v: string, { object }: any) {
 export const httpsPortCfg = defineConfig('https_port', PORT_DISABLED)
 subMultipleConfigs(considerHttps, [httpsPortCfg, listenInterface, ...httpsNeeds])
 
-const genericInterfaceNames = {
-    '0.0.0.0': "any IPv4",
-    '::': "any IPv6",
-    '': "any network",
-}
-
 function renderHost(host: string) {
-    return xlate(host, genericInterfaceNames)
+    return xlate(host, {
+        '0.0.0.0': ct('anyIpv4'),
+        '::': ct('anyIpv6'),
+        '': ct('anyNetwork'),
+    })
 }
 
 interface StartServer { port: number, host?:string }
@@ -216,12 +215,12 @@ export function startServer(srv: typeof httpSrv, { port, host }: StartServer) {
             srv.on('checkContinue', (req, res) => srv.emit('request', req, res))
             port = await listen(host)
             if (port)
-                console.log(`Serving ${srv.name} on ${renderHost(host || '')} port ${port}`)
+                console.log(ct('servingOn', { proto: srv.name, host: renderHost(host || ''), port }))
             resolve(port)
         }
         catch(e) {
             srv.error = String(e)
-            console.error(srv.name, `Couldn't listen on port ${port}:`, srv.error)
+            console.error(srv.name, ct('couldNotListenPort', { port, error: srv.error }))
             resolve(0)
         }
     })
@@ -257,9 +256,9 @@ export function startServer(srv: typeof httpSrv, { port, host }: StartServer) {
                         res => res?.map(x => prefix("Service", x.name === 'svchost.exe' && x.cmd.split(x.name)[1]?.trim()) || x.name).join(' + '),
                         () => '')
                 if (code === 'EACCES' && port < 1024 && !srv.busy) // on Windows, when port is used by a service, we get EACCES
-                    srv.error = `lacking permission on port ${port}, try with permission (${IS_WINDOWS ? 'administrator' : 'sudo'}) or port > 1024`
+                    srv.error = ct('lackingPermissionPort', { port, permission: IS_WINDOWS ? 'administrator' : 'sudo' })
                 if (code === 'EADDRINUSE' || srv.busy)
-                    srv.error = `port ${port} busy: ${await srv.busy || "unknown process"}`
+                    srv.error = ct('portBusy', { port, process: await srv.busy || ct('unknownProcess') })
                 if (!silence)
                     console.error(srv.name, srv.error)
                 resolve(0)
@@ -274,10 +273,10 @@ export function stopServer(srv?: http.Server) {
             return resolve(null)
         const ad = srv.address()
         if (ad && typeof ad !== 'string')
-            console.log("Stopped port", ad.port)
+            console.log(ct('stoppedPort'), ad.port)
         srv.close(err => {
             if (err && (err as any).code !== 'ERR_SERVER_NOT_RUNNING')
-                console.debug("Failed to stop server", String(err))
+                console.debug(ct('failedStopServer'), String(err))
             resolve(err)
         })
         if (quitting)
@@ -345,5 +344,5 @@ export async function getUrls() {
 function printUrls(srvName: string) {
     getUrls().then(urls =>
         _.each(urls[srvName], url =>
-            console.log('Serving on', url)))
+            console.log(ct('servingUrl', { url }))))
 }

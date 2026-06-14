@@ -17,6 +17,7 @@ import apiMonitor, { inferOperation, serializeConnection } from './api.monitor'
 import { getConnections } from './connections'
 import { argv } from './argv'
 import { getServerStatus } from './listen'
+import { ct } from './serverI18n'
 
 let debugEnabled = argv.debug || process.env.HFS_DEBUG || DEV
 
@@ -24,7 +25,7 @@ if (!argv.updating && !showHelp) {
     try {
         // Not sure if the try is necessary for when stdin is unavailable, but someone reported a problem using nohup https://github.com/rejetto/hfs/issues/74 and I've found this example try-catching https://github.com/DefinitelyTyped/DefinitelyTyped/blob/dda83a906914489e09ca28afea12948529015d4a/types/node/readline.d.ts#L489
         const tty = process.stdin.isTTY && process.stdout.isTTY || undefined
-        const prompter = createInterface({ input: process.stdin, output: process.stdout, prompt: tty && 'command> ' })
+        const prompter = createInterface({ input: process.stdin, output: process.stdout, prompt: tty && ct('commandPrompt') })
             .on('line', x => parseCommandLine(x).then(showPrompt))
             .on('SIGINT', () => process.emit('SIGINT')) // readline swallows the first ctrl+c unless we forward it to process-level handlers
 
@@ -57,7 +58,7 @@ if (!argv.updating && !showHelp) {
         }
     }
     catch {
-        console.log("Console commands not available")
+        console.log(ct('consoleCommandsNotAvailable'))
         const original = console.debug
         console.debug = (...args: any[]) => debugEnabled && original(...args)
     }
@@ -73,17 +74,17 @@ async function parseCommandLine(line: string) {
     if (cmd?.alias)
         cmd = (commands as any)[cmd.alias]
     if (!cmd)
-        return console.error("Invalid command, try 'help'")
+        return console.error(ct('invalidCommand'))
     if (cmd.cb.length > params.length)
-        return console.error("Insufficient parameters, expected: " + cmd.params)
+        return console.error(ct('insufficientParameters', { params: cmd.params }))
     try {
         await cmd.cb(...params)
-        console.log("+++ Command executed")
+        console.log(ct('commandExecuted'))
     }
     catch(err: any) {
         if (typeof err !== 'string' && !err?.message)
             throw err
-        console.error("Command failed:", err.message || err)
+        console.error(ct('commandFailed', { error: err.message || err }))
     }
 }
 
@@ -93,7 +94,7 @@ const commands = {
     help: {
         params: '',
         cb() {
-            console.log("Available commands:",
+            console.log(ct('availableCommands'),
                 ..._.map(commands, ({ params }, name) =>
                     '\n - ' + name + ' ' + params))
         }
@@ -152,7 +153,7 @@ const commands = {
             const update = await getBestUpdate()
             if (!update)
                 throw "you already have the latest version: " + VERSION
-            console.log("New version available", update.name)
+            console.log(ct('newVersionAvailable'), update.name)
         }
     },
     version: {
@@ -165,7 +166,7 @@ const commands = {
         params: '',
         cb() {
             debugEnabled = !debugEnabled
-            console.log(`Debug messages ${debugEnabled ? "on" : "off"}`)
+            console.log(ct(debugEnabled ? 'debugMessagesOn' : 'debugMessagesOff'))
         }
     },
     'start-plugin': {
@@ -183,8 +184,8 @@ const commands = {
     'list-plugins': {
         params: '',
         cb() {
-            mapPlugins(p => console.log('On:', p.id), false)
-            getInactivePlugins().map(p => console.log('Off:', p.id))
+            mapPlugins(p => console.log(ct('pluginOnLabel'), p.id), false)
+            getInactivePlugins().map(p => console.log(ct('pluginOffLabel'), p.id))
         }
     },
     'purge-file-attr': {
@@ -196,7 +197,7 @@ const commands = {
         cb() {
             const transfers = getConnections().map(serializeConnection).filter(x => x.op === 'upload' || x.op === 'download')
             if (!transfers.length)
-                return console.log("No ongoing uploads/downloads")
+                return console.log(ct('noOngoingTransfers'))
             console.table(transfers.map(x => ({
                 type: x.op,
                 progress: with_(x.opProgress ?? x.opOffset, v => v == null ? '' : formatPerc(v)),

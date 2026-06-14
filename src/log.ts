@@ -10,6 +10,7 @@ import _ from 'lodash'
 import { createFileWithPath, ensureParentFolder, statWithTimeout } from './util-files'
 import { getCurrentUsername } from './auth'
 import { DAY, makeNetMatcher, tryJson, Dict, Falsy, CFG, strinsert, repeat, formatTimestamp, HTTP_NOT_FOUND } from './misc'
+import { ct } from './serverI18n'
 import { basename, extname } from 'path'
 import yazl from 'yazl'
 import { pipeline } from 'stream/promises'
@@ -40,7 +41,7 @@ class Logger {
         }
         catch {
             if (await ensureParentFolder(path) === false)
-                console.log("Cannot create folder for", path)
+                console.log(ct('cannotCreateFolderFor'), path)
         }
         this.reopen()
     }
@@ -230,4 +231,4 @@ debugLogFile.once('open', () => {
         renameSync(path, 'old-' + path)
         debugLogFile = createWriteStream(path) // new file
     })
-}).on('error', () => console.log("Cannot create debug.log"))
+}).on('error', () => console.log(ct('cannotCreateDebugLog')))

@@ -8,6 +8,7 @@ import {
 } from '@mui/material'
 import { SxProps } from '@mui/system'
 import { useIsMobile } from '@hfs/shared'
+import { formT } from './formI18n'
 
 type SelectOptions<T> = { [label:string]: T } | SelectOption<T>[]
 type SelectOption<T> = SelectOptionNormalized<T> | (T extends string | number ? T : never)
@@ -97,10 +98,10 @@ export function MultiSelectField<T>({ renderOption, ...props }: MultiSelectField
                 : (!normalizedOptions.length && h(ListItemText, {
                     sx: { fontStyle: 'italic', ml: 1 },
                     onClickCapture(ev) { ev.stopPropagation() }
-                }, "No options available")),
+                }, formT('No options available'))),
             !isMobile && normalizedOptions?.length! > 20 && h(Box, {
                 sx: { float: 'right', fontSize: 'small', width: '8em', textAlign: 'right', marginRight: '.5em' },
-            }, "ⓘ You can type the name"),
+            }, 'ⓘ ' + formT('You can type the name')),
             h(Button, {
                 size: 'small',
                 sx: { ml: 1, display: normalizedOptions?.length! > 1 ? undefined : 'none' },
@@ -112,7 +113,7 @@ export function MultiSelectField<T>({ renderOption, ...props }: MultiSelectField
                     event.stopPropagation()
                     onChange(isEmpty ? normalizedOptions!.map(x => x.value) : [], { was: value, event })
                 },
-            }, isEmpty ? "Select all" : "Unselect all"),
+            }, isEmpty ? formT('Select all') : formT('Unselect all')),
             ...normalizedOptions?.map(o => h(MenuItem, { value: JSON.stringify(o?.value) }, // encode, as this supports only string|number
                 h(Checkbox, { checked: value?.includes(o.value) || false }),
                 h(ListItemText, { primary: renderOption!(o) })

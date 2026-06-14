@@ -11,6 +11,7 @@ import { getIps, getServerStatus } from './listen'
 import { exec } from 'child_process'
 import { IS_MAC, IS_WINDOWS } from './const'
 import { configReady, defineConfig } from './config'
+import { ct } from './serverI18n'
 
 export const defaultBaseUrl = proxy({
     proto: 'http',
@@ -53,7 +54,7 @@ export const getPublicIps = debounceAsync(async () => {
         Promise.any(singleVersion.map(async (svc: any) => {
             if (typeof svc === 'string')
                 svc = { type: 'http', url: svc }
-            console.debug("Trying ip service", svc.url || svc.name)
+            console.debug(ct('tryingIpService', { service: svc.url || svc.name }))
             if (svc.type === 'http') {
                 const timeout = 5_000
                 return httpString(svc.url, { timeout, proxy: '' }).catch(e => { // first try without a proxy
@@ -83,8 +84,11 @@ export const getNatInfo = debounceAsync(async () => {
     const gw = upnp && await haveTimeout(10_000, upnp.getGateway()).catch(() => null)
     const status = await getServerStatus()
     let mappings = gw && await haveTimeout(5_000, upnp.getMappings())?.catch(() => null)
-    console.debug(gw ? "Mappings found:" : "Mappings not queried:",
-        mappings?.map(x => x.description).join(', ') || (gw ? "none" : upnp ? "gateway not found" : "UPnP disabled") )
+    const mappingDetail = mappings?.map(x => x.description).join(', ') || (gw ? ct('none') : upnp ? "gateway not found" : "UPnP disabled")
+    if (gw)
+        console.debug(ct('mappingsFound', { mappings: mappingDetail }))
+    else
+        console.debug(ct('mappingsNotQueried'), mappingDetail)
     const localIps = await getIps(false)
     const gatewayIp = await gatewayIpPromise
     const localIp = gw?.address || (gatewayIp ? _.maxBy(localIps, x => inCommon(x, gatewayIp)) : localIps[0])
@@ -96,7 +100,7 @@ export const getNatInfo = debounceAsync(async () => {
             // confirm router state after restore instead of trusting the AddPortMapping result
             mappings = await haveTimeout(5_000, upnp.getMappings())
             mapped = _.find(mappings, x => x.private.host === localIp && x.private.port === internalPort)
-        }).catch(e => console.warn('UPnP mapping restore failed:', e?.message || String(e)))
+        }).catch(e => console.warn(ct('upnpMappingRestoreFailed', { error: e?.message || String(e) })))
     const externalPort = mapped?.public.port
     if (localIp)
         defaultBaseUrl.localIp = localIp
@@ -117,8 +121,9 @@ export const getNatInfo = debounceAsync(async () => {
 upnpEnabled.sub(v => {
     getNatInfo.clearRetain()
     if (v) {
-        getUpnpClient().getGateway().then(res => console.log("UPnP found", res.gateway.description),
-            e => console.debug('UPnP failed:', e.message || String(e)))
+        getUpnpClient().getGateway().then(
+            res => console.log(ct('upnpFound', { description: res.gateway.description })),
+            e => console.debug(ct('upnpFailed', { error: e.message || String(e) })))
         return
     }
     // closing the client guarantees the disabled setting also stops any existing SSDP socket

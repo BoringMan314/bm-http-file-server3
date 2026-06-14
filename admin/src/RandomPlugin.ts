@@ -8,6 +8,7 @@ import _ from 'lodash'
 import { renderName } from './InstalledPlugins'
 import { installPluginFromResult } from './OnlinePlugins'
 import { toast } from './dialog'
+import { t, useAdminLanguage } from './adminI18n'
 
 const cacheKey = 'onlinePluginsCache'
 
@@ -28,12 +29,12 @@ export function RandomPlugin() {
     }, [list, initializing])
     useEffect(() => {
         if (idx > 0 && !one)
-            toast("No more plugins!")
+            toast(t('No more plugins!'))
     }, [idx])
     if (hideRandomPlugin || !one) return
     return h(Card, { sx: { display: { xs: 'none', md: 'block' }, float: 'right', width: 'min(50%, 30em)', ml: '1em' } },
         h(CardContent, {},
-            h(Box, { sx: { fontWeight: 'bold', fontSize: '1.4em' } }, h(Box, { sx: { color: 'warning.main', mr: 1, display: 'inline' } }, '🎲'), "Random plugin:"),
+            h(Box, { sx: { fontWeight: 'bold', fontSize: '1.4em' } }, h(Box, { sx: { color: 'warning.main', mr: 1, display: 'inline' } }, '🎲'), t('Random plugin:')),
             h(Box, { sx: { fontWeight: 'bold', fontSize: '1.8em', my: 1 } }, renderName({ row: one })),
             h(Box, {}, one.description),
             one.preview && h('img', {
@@ -48,9 +49,9 @@ export function RandomPlugin() {
             }),
         ),
         h(CardActions, {},
-            h(Btn, { variant: 'outlined', onClick: () => installPluginFromResult(one) }, "Install"),
-            h(Btn, { variant: 'outlined', onClick: () => setIdx(x => x + 1) }, "Another"),
-            h(Btn, { variant: 'outlined', onClick() { state.hideRandomPlugin = true } }, "Hide this box"),
+            h(Btn, { variant: 'outlined', onClick: () => installPluginFromResult(one) }, t('Install')),
+            h(Btn, { variant: 'outlined', onClick: () => setIdx(x => x + 1) }, t('Another')),
+            h(Btn, { variant: 'outlined', onClick() { state.hideRandomPlugin = true } }, t('Hide this box')),
         )
     )
 }

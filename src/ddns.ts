@@ -8,6 +8,7 @@ import { VERSION } from './const'
 import events from './events'
 import { getPublicIps } from './nat'
 import { Readable } from 'node:stream'
+import { ct } from './serverI18n'
 
 // optionally you can append '>' and a regular expression to determine what body is considered successful
 const dynamicDnsUrl = defineConfig(CFG.dynamic_dns_url, '')
@@ -54,7 +55,7 @@ dynamicDnsUrl.sub(v => {
         }))
         last = _.find(all, 'error') || all[0] // the system is designed for just one result, and we give precedence to errors
         events.emit('dynamicDnsError', last)
-        console.log('Dynamic dns update', last?.error || 'ok')
+        console.log(ct('dynamicDnsUpdate'), last?.error || 'ok')
     }, { callNow: true })
 })
 

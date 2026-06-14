@@ -3,6 +3,7 @@
 import { createElement as h, Fragment, ReactNode, useEffect, useRef, useState } from 'react'
 import { FieldProps } from '.'
 import { Autocomplete, InputAdornment, TextField } from '@mui/material'
+import { formT } from './formI18n'
 import { StandardTextFieldProps } from '@mui/material/TextField/TextField'
 
 export interface StringFieldProps extends FieldProps<string>, Partial<Omit<StandardTextFieldProps, 'label' | 'onChange' | 'value'>> {
@@ -103,6 +104,7 @@ export function StringField({
         : h(Autocomplete, {
             freeSolo: true,
             options: suggestions,
+            noOptionsText: formT('No options'),
             renderInput: render,
             onChange(ev, v) {
                 go(ev, v as string)

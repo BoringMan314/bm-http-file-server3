@@ -15,6 +15,7 @@ import VfsMenuBar from './VfsMenuBar'
 import { ApiObject } from './api'
 import { alertDialog, toast } from './dialog'
 import _ from 'lodash'
+import { t, useAdminLanguage } from './adminI18n'
 
 export const FolderIcon = Folder
 export const FileIcon = InsertDriveFileOutlined
@@ -23,7 +24,8 @@ let once = true
 
 const SPECIAL_TREE_ITEM = '?'
 
-export default function VfsTree({ statusApi }:{ statusApi: ApiObject }) {
+export default function VfsTree({statusApi }:{ statusApi: ApiObject }) {
+    useAdminLanguage()
     const { vfs, selectedFiles, expanded } = useSnapState()
     const dragging = useRef<string>()
     const Branch = useCallback(function({ node }: { node: Readonly<VfsNodeAdmin> }): ReactElement {
@@ -61,7 +63,7 @@ export default function VfsTree({ statusApi }:{ statusApi: ApiObject }) {
                     if (!from) return
                     const fromName = id2vfsNode.get(from)?.name // won't work after moving
                         if (moveVfs(from, id))
-                            toast(`Moved "${fromName}" under "${id2vfsNode.get(id)?.name}"`, 'success')
+                            toast(t("Moved {from} under {to}", { from: fromName ?? '', to: id2vfsNode.get(id)?.name ?? '' }), 'success')
                 },
                 sx: {
                     display: 'flex',
@@ -78,21 +80,21 @@ export default function VfsTree({ statusApi }:{ statusApi: ApiObject }) {
                             display: 'grid', gridAutoFlow: 'column', gridTemplateRows: 'auto auto', height: '1em',
                         }
                     },
-                        node.can_delete != null && iconTooltip(Delete, "Delete permission"),
-                        node.can_upload != null && iconTooltip(Upload, "Upload permission"),
-                        !isRoot && !node.source && !node.url && iconTooltip(Cloud, "Virtual (no source)"),
-                        isRestricted(node.can_see) && iconTooltip(RemoveRedEye, "Restrictions on who can see"),
-                        isRestricted(node.can_read) && iconTooltip(Lock, "Restrictions on who can download"),
-                        node.default && iconTooltip(Web, "Show as web-page"),
-                        node.masks && iconTooltip(TheaterComedy, "Masks"),
-                        node.size === -1 && iconTooltip(HighlightOff, "Source not found"),
-                        rootFor && iconTooltip(Home, `home for ${rootFor}`)
+                        node.can_delete != null && iconTooltip(Delete, t("Delete permission")),
+                        node.can_upload != null && iconTooltip(Upload, t("Upload permission")),
+                        !isRoot && !node.source && !node.url && iconTooltip(Cloud, t("Virtual (no source)")),
+                        isRestricted(node.can_see) && iconTooltip(RemoveRedEye, t("Restrictions on who can see")),
+                        isRestricted(node.can_read) && iconTooltip(Lock, t("Restrictions on who can download")),
+                        node.default && iconTooltip(Web, t("Show as web-page")),
+                        node.masks && iconTooltip(TheaterComedy, t("Masks")),
+                        node.size === -1 && iconTooltip(HighlightOff, t("Source not found")),
+                        rootFor && iconTooltip(Home, t("home for {host}", { host: rootFor }))
                     ),
                 ),
-                isRoot ? "Home folder" : name
+                isRoot ? t("Home folder") : name
             ),
             itemId: id
-        }, with_(node.source && isFolder ? "files from " + node.source : !node.children?.length && isRoot && "nothing here", x =>
+        }, with_(node.source && isFolder ? t("files from {source}", { source: node.source }) : !node.children?.length && isRoot && t("nothing here"), x =>
                 x && h(TreeItem, { itemId: SPECIAL_TREE_ITEM + id, label: h('i', {}, x) })),
             ...node.children?.map(x => h(Branch, { key: x.id, node: x })) || []
         )
@@ -115,7 +117,7 @@ export default function VfsTree({ statusApi }:{ statusApi: ApiObject }) {
         once = false
         state.expanded = initialExpansion
     }
-    const [_expandAll, toggleBtn] = useToggleButton("Collapse all", "Expand all", exp => ({
+    const [_expandAll, toggleBtn] = useToggleButton(t("Collapse all"), t("Expand all"), exp => ({
         icon: exp ? UnfoldLess : UnfoldMore,
         sx: { rotate: exp ? 0 : '180deg' },
         onClick() {
@@ -133,7 +135,7 @@ export default function VfsTree({ statusApi }:{ statusApi: ApiObject }) {
     }, [first])
     return h(Flex, { flexDirection: 'column', alignItems: 'stretch', flex: 1 },
         h(Flex, { mb: 1, flexWrap: 'wrap', gap: [1, 2], mt: '2px' /*account for the save button's outline*/ },
-            h(Typography, { variant: 'h6' }, "Virtual File System"),
+            h(Typography, { variant: 'h6' }, t("Virtual File System")),
             h(VfsMenuBar, { statusApi, add: toggleBtn }),
         ),
         vfs && h(SimpleTreeView, {
@@ -172,19 +174,19 @@ export default function VfsTree({ statusApi }:{ statusApi: ApiObject }) {
 export function moveVfs(from: string, to: string) {
     const fromNode = id2vfsNode.get(from)
     if (!fromNode)
-        return !alertDialog("Item to move not found", 'error')
+        return !alertDialog(t("Item to move not found"), 'error')
     if (fromNode.isRoot)
-        return !alertDialog("Cannot move root", 'error')
+        return !alertDialog(t("Cannot move root"), 'error')
     const toNode = id2vfsNode.get(to)
     if (!toNode || toNode.type !== 'folder')
-        return !alertDialog("Destination folder not found", 'error')
+        return !alertDialog(t("Destination folder not found"), 'error')
     if (isDescendantUri(to, from))
-        return !alertDialog("Cannot move inside itself", 'error')
+        return !alertDialog(t("Cannot move inside itself"), 'error')
     if (toNode.children?.find(x => x.name === fromNode.name))
-        return !alertDialog("Item with same name already present in destination", 'error')
+        return !alertDialog(t("Item with same name already present in destination"), 'error')
     const oldSiblings = fromNode.parent?.children
     if (!oldSiblings)
-        return !alertDialog("Source parent not found", 'error')
+        return !alertDialog(t("Source parent not found"), 'error')
     const fromParent = fromNode.parent
     const movedName = fromNode.name
     const movedIsFolder = fromNode.type === 'folder'
@@ -211,10 +213,10 @@ export function moveVfs(from: string, to: string) {
 }
 
 export function vfsNodeIcon(node: VfsNodeAdmin) {
-    return node.isRoot ? iconTooltip(Home, "home, or root if you like")
-        : node.type === 'folder' ? iconTooltip(FolderIcon, "Folder")
-            : node.url ? iconTooltip(Link, "Web-link")
-                : iconTooltip(FileIcon, "File")
+    return node.isRoot ? iconTooltip(Home, t("home, or root if you like"))
+        : node.type === 'folder' ? iconTooltip(FolderIcon, t("Folder"))
+            : node.url ? iconTooltip(Link, t("Web-link"))
+                : iconTooltip(FileIcon, t("File"))
 }
 
 export function addToChildrenOf(parent: VfsNodeAdmin, moreChildren: VfsNodeAdmin[]) {

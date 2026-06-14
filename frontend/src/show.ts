@@ -264,7 +264,7 @@ export function fileShow(entry: DirEntry, { startPlaying=false, startShuffle=fal
                     Content: () => h(Btn, {
                         autoFocus: true,
                         icon: 'play',
-                        label: "Click here to play",
+                        label: t`Click here to play`,
                         onClick: () => {
                             mel.play().catch(playFailed)
                             dlg.close()

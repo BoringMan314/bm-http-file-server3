@@ -20,12 +20,14 @@ import FileForm, { useAccountsApi } from './FileForm'
 import { Add, Delete } from '@mui/icons-material'
 import { toast } from './dialog'
 import { PageProps } from './App'
+import { t, useAdminLanguage } from './adminI18n'
 
 let selectOnReload: string[] | undefined
 let exposeVfsLoading: Promise<unknown> | undefined
 export const id2vfsNode = new Map<string, VfsNodeAdmin>()
 
-export default function VfsPage({ setTitleSide }: PageProps) {
+export default function VfsPage({setTitleSide }: PageProps) {
+    const { language } = useAdminLanguage()
     const { vfs, selectedFiles, movingFile, vfsShowDiskContentFor } = useSnapState()
     const { data, reload, element, loading } = useApiEx('get_vfs')
     exposeVfsLoading = loading
@@ -63,25 +65,29 @@ export default function VfsPage({ setTitleSide }: PageProps) {
     const nothingShared = data && !data.root?.children?.length && !data.root?.source
     const hintElement = useMemo(() => nothingShared ? h(Alert, {
         severity: 'warning',
-        children: h(Fragment, {}, "Add something to your virtual file system — click the ", h(Add), "button, or set a source for the Home folder"),
+        children: h(Fragment, {},
+            t('Add something to your virtual file system — click the '),
+            h(Add),
+            t(' button, or set a source for the Home folder'),
+        ),
     }) : urls?.length > 0 && h(Alert, {
         severity: 'info',
         children: [
-            "Your shared files can be browsed from ",
+            t("Your shared files can be browsed from "),
             h('span', { className: HIDE_IN_TESTS, key: 0 },
-                reactJoin(" or ", urls.slice(0,3).map(href => h(Link, { href, target: 'frontend' }, href))) )
+                reactJoin(t(" or "), urls.slice(0,3).map(href => h(Link, { href, target: 'frontend' }, href))) )
         ]
-    }), [nothingShared, urls])
+    }), [nothingShared, urls, language])
 
     setTitleSide(useMemo(() => h(Box, { sx: { display: { xs: 'none', md: 'block' }  } },
-        h(Alert, { severity: 'info' }, "This is what your users will see. Edit it freely – files on disk won’t be changed."),
+        h(Alert, { severity: 'info' }, t("This is what your users will see. Edit it freely – files on disk won’t be changed.")),
         hintElement,
     ), [hintElement]))
 
     const single = selectedFiles?.length < 2 && selectedFiles[0] as VfsNodeAdmin
     const sideContent = useMemo(() => !vfs ? null
         : diskContent.enabled ? diskContent.element || h(Box, {},
-            h(Box, { sx: { fontSize: 'xx-large', wordBreak: 'break-all' } }, "From ", vfsShowDiskContentFor),
+            h(Box, { sx: { fontSize: 'xx-large', wordBreak: 'break-all' } }, t('From {path}', { path: vfsShowDiskContentFor })),
             h(List, { dense: true },
                 diskContent.list.map(it =>
                     h(ListItem, { key: it.n, sx: { borderTop: '1px solid #8888' } }, h(ListLsItem, { it })))
@@ -99,15 +105,15 @@ export default function VfsPage({ setTitleSide }: PageProps) {
         : !selectedFiles.length ? null
         : h(Fragment, {},
             h(Flex, {},
-                h(Typography, {variant: 'h6'}, selectedFiles.length + ' selected'),
-                h(Button, { onClick: deleteFiles, startIcon: h(Delete) }, "Remove"),
+                h(Typography, {variant: 'h6'}, t("{count} selected", { count: selectedFiles.length })),
+                h(Button, { onClick: deleteFiles, startIcon: h(Delete) }, t("Remove")),
             ),
             h(List, { dense: true, disablePadding: true },
                 selectedFiles.map(f => h(ListItem, { key: f.id },
                     h(ListItemText, { primary: f.name, secondary: f.source }) ))
             )
         )
-    , [accountsApi.element, vfs, diskContent.list, single, selectedFiles])
+    , [accountsApi.element, vfs, diskContent.list, single, selectedFiles, language])
 
     useEffect(() => {
         if (isSideBreakpoint || !sideContent) return
@@ -120,12 +126,12 @@ export default function VfsPage({ setTitleSide }: PageProps) {
             }
         }
         const { close } = newDialog({
-            title: vfsShowDiskContentFor ? "Disk content"
-                : selectedFiles.length > 1 ? "Multiple selection" :
+            title: vfsShowDiskContentFor ? t("Disk content")
+                : selectedFiles.length > 1 ? t("Multiple selection") :
                 h(Flex, {},
                     vfsNodeIcon(selectedFiles[0] as VfsNodeAdmin),
                     h(Flex, { flexWrap: 'wrap', gap: '0 0.5em' },
-                        selectedFiles[0].name || "Home",
+                        selectedFiles[0].name || t("Home"),
                         h(Box, { component: 'span', sx: { color: 'text.secondary' } } as any, ancestors.join(' /'))
                     )
                 ),
@@ -254,7 +260,7 @@ async function deleteFiles() {
     const f = state.selectedFiles
     if (!f.length) return
     deleteVfs(f.map(x => x.id))
-    toast(`${f.length} item(s) deleted`, 'success')
+    toast(t('{count} item(s) deleted', { count: f.length }), 'success')
 }
 
 export function deleteVfs(uris: string[]) {

@@ -81,7 +81,7 @@ export function showOptions (){
                 onChange(v) {
                     i18n.state.disabled = state.disableTranslation = v
                 }
-            }, "English"),
+            }, t`English`),
         )
     }
 }

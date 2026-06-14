@@ -11,8 +11,28 @@ import { Search } from '@mui/icons-material'
 import { SxProps } from '@mui/system'
 import { state, updateStateObject } from './state'
 import { useDebounce } from 'usehooks-ts'
+import { t, useAdminLanguage } from './adminI18n'
 
 const ACTIONS = 'Actions'
+
+const dataGridBaseLocaleText = enUS.components.MuiDataGrid.defaultProps.localeText as Record<string, unknown>
+
+function useDataGridLocaleText() {
+    const { language } = useAdminLanguage()
+    return useMemo(() => {
+        const localeText: Record<string, unknown> = {}
+        for (const [key, val] of Object.entries(dataGridBaseLocaleText)) {
+            if (key === 'paginationDisplayedRows' && typeof val === 'function')
+                localeText[key] = ({ from, to, count }: { from: number, to: number, count: number }) =>
+                    count === -1
+                        ? t('{from}–{to} of more than {to}', { from, to })
+                        : t('{from}–{to} of {count}', { from, to, count })
+            else
+                localeText[key] = typeof val === 'string' ? t(val) : val
+        }
+        return localeText
+    }, [language])
+}
 
 export type DataTableColumn<R extends GridValidRowModel=any> = GridColDef<R> & {
     hideUnder?: Breakpoint | number | boolean
@@ -43,11 +63,12 @@ export function DataTable({
 }: DataTableProps) {
     const theme = useTheme()
     const apiRef = useGridApiRef()
+    const gridLocaleText = useDataGridLocaleText()
     const [actionsLength, setActionsLength] = useState(0)
     const [quickFilterOpen, setQuickFilterOpen] = useState(false)
     const [merged, setMerged] = useState(0)
     const manipulatedColumns = useMemo(() => {
-        const { localeText } = enUS.components.MuiDataGrid.defaultProps as any
+        const localeText = gridLocaleText
         const ret = onlyTruthy(columns.map(col => {
             if (!col) return
             const { type, sx } = col
@@ -61,7 +82,7 @@ export function DataTable({
                             const res = op.getApplyFilterFn(item, col)
                             return res && _.negate(res)
                         },
-                        label: "(not) " + (localeText['filterOperator' + _.upperFirst(op.value)] || op.value)
+                        label: t("(not) {operator}", { operator: String(localeText['filterOperator' + _.upperFirst(op.value)] || op.value) })
                     } satisfies typeof op
                 ])
             if (!col.mergeRender && !col.sx)
@@ -105,7 +126,7 @@ export function DataTable({
                 renderHeader: quickFilter || actionsHeader ? renderActionsHeader : actionsProps?.renderHeader,
             })
         return ret
-    }, [columns, actions, actionsHeader, actionsLength, actionsProps, quickFilter])
+    }, [columns, actions, actionsHeader, actionsLength, actionsProps, quickFilter, gridLocaleText])
     const sizeGrid = useGetSize()
     const width = useDebounce(sizeGrid.w || 0, 100) // stabilize width
     const hideCols = useMemo(() => {
@@ -155,6 +176,7 @@ export function DataTable({
             disableRowSelectionOnClick: true,
             ref: sizeGrid.refToPass,
             ...rest,
+            localeText: { ...gridLocaleText, ...rest.localeText },
             ...quickFilter && { showToolbar: quickFilterOpen || rest.showToolbar },
             sx: mergeSx({
                 ...fillFlex && { height: 0, flex: 'auto' }, // limit table to available screen space, if parent is flex. Consider using fillFlexParentSx
@@ -173,7 +195,6 @@ export function DataTable({
                 footer: { ...(slotProps as any)?.footer, add: wrappedFooterSide },
                 noRowsOverlay: { ...(slotProps as any)?.noRowsOverlay, initializing, noRows },
                 pagination: {
-                    labelRowsPerPage: "Rows",
                     ...!causingScrolling && {
                         showFirstButton: true,
                         showLastButton: true,
@@ -189,7 +210,7 @@ export function DataTable({
                     !x.dialogHidden && (x.renderCell || x.valueGetter || x.field === ACTIONS || row[x.field] !== undefined))
                 if (showInDialog.length <= visibleInList) return // no need for dialog
                 newDialog({
-                    title: "Details",
+                    title: t("Details"),
                     onClose() {
                         displayingDetails.current = {}
                     },
@@ -238,7 +259,7 @@ export function DataTable({
     function renderActionsHeader(params: any) {
         return h(Box, { sx: { display: 'flex', width: '100%', justifyContent: 'center' }, onClick: stopPropagation, onKeyDown: stopPropagation },
             actionsHeader !== undefined ? callable(actionsHeader, params) : actionsProps?.renderHeader?.(params),
-            quickFilter && h(IconBtn, { icon: Search, title: "Search", size: 'small', onClick: () => setQuickFilterOpen(true) }))
+            quickFilter && h(IconBtn, { icon: Search, title: t("Search"), size: 'small', onClick: () => setQuickFilterOpen(true) }))
 
         function stopPropagation(ev: SyntheticEvent) {
             // prevent header controls from triggering grid sorting or column interactions
@@ -280,7 +301,7 @@ function DataTableQuickFilterToolbar({ onExpandedChange }: {
         }
     },
         h(QuickFilter, { expanded: true, debounceMs: 300, onExpandedChange },
-            h(QuickFilterControl as ElementType, { fullWidth: true, inputRef, size: 'small', placeholder: "Search" })))
+            h(QuickFilterControl as ElementType, { fullWidth: true, inputRef, size: 'small', placeholder: t("Search") })))
 }
 
 function CustomFooter({ add, ...props }: { add?: ReactNode }) {
@@ -288,7 +309,7 @@ function CustomFooter({ add, ...props }: { add?: ReactNode }) {
 }
 
 function NoRowsOverlay({ initializing, noRows }: { initializing?: boolean, noRows?: ReactNode }) {
-    return initializing ? null : h(Center, {}, noRows || "No entries")
+    return initializing ? null : h(Center, {}, noRows || t("No entries"))
 }
 
 // required in case of fillFlex:true

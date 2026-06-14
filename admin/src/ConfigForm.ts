@@ -5,6 +5,7 @@ import _ from 'lodash'
 import { IconBtn, propsForModifiedValues } from './mui'
 import { RestartAlt } from '@mui/icons-material'
 import { Callback, onlyTruthy } from './misc'
+import { t, useAdminLanguage } from './adminI18n'
 
 type FormRest<T> = Omit<FormProps<T>, 'values' | 'set' | 'save'> & Partial<Pick<FormProps<T>, 'save'>>
 export function ConfigForm<T=any>({ keys, form, saveOnChange, onSave, ...rest }: Partial<FormRest<T>> & {
@@ -44,7 +45,7 @@ export function ConfigForm<T=any>({ keys, form, saveOnChange, onSave, ...rest }:
             h(IconBtn, {
                 icon: RestartAlt,
                 disabled: !modified,
-                title: "Reset",
+                title: t('Reset'),
                 onClick(){ setValues(config.data) }
             }),
             ...rest.addToBar||[],

@@ -11,9 +11,11 @@ import { StringField } from './StringField'
 import { useDebounce } from 'usehooks-ts'
 import type { SxProps } from '@mui/system'
 import type { Theme } from '@mui/material/styles'
+import { formT } from './formI18n'
 export * from './SelectField'
 export * from './misc-fields'
 export { StringField }
+export { setFormTranslate, formT } from './formI18n'
 
 type ValidationError = ReactNode // false = no error
 export interface FieldDescriptor<T=any> extends FieldApi<T> {
@@ -220,11 +222,11 @@ export function Form<Values extends Dict>({
                 },
                 ...barSx,
             }
-        }, h(Tooltip, { title: "ctrl + enter", children: h(Button as any, {
+        }, h(Tooltip, { title: formT('ctrl + enter'), children: h(Button as any, {
                 // mui v6 moved LoadingButton behavior into Button, but current typings here still miss loading props
                 variant: 'contained',
                 startIcon: h(Save),
-                children: "Save",
+                children: formT('Save'),
                 loading: useDebounce(phase !== Phase.Idle), // debounce fixes click being ignored at state change and flickering
                 ...saveBtn,
                 className: `saveBtn ${saveBtn?.className||''}`,
@@ -257,7 +259,7 @@ export function Form<Values extends Dict>({
         if (phase === Phase.Idle) return
         if (phase === Phase.WaitValues)
             return setPhase(Phase.Validating)
-        const MSG = "Please review errors"
+        const MSG = formT('Please review errors')
         const errs: typeof errors = {}
         for (const f of fields) {
             if (!f || isValidElement(f) || !f.k) continue
@@ -309,8 +311,9 @@ export function Form<Values extends Dict>({
 }
 
 export function labelFromKey(k: string) {
-    return _.upperFirst(k.indexOf('_') > 0 ? k.replace(/_/g, ' ')
+    const label = _.upperFirst(k.indexOf('_') > 0 ? k.replace(/_/g, ' ')
         : k.replace(/([a-z])([A-Z])/g, (_all, a, b) => a + ' ' + b.toLowerCase()))
+    return formT(label)
 }
 
 function legacySpanToGridSize({ xs, sm, md, lg, xl }: { xs?: unknown, sm?: unknown, md?: unknown, lg?: unknown, xl?: unknown }) {

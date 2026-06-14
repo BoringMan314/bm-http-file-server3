@@ -2,6 +2,7 @@
 import { EventEmitter } from 'events'
 import _ from 'lodash'
 import assert from 'assert'
+import { ct } from './serverI18n'
 
 type ProcessExitHandler = (signal: string) => any
 const cbsOnExit = new Set<{ cb: ProcessExitHandler, order: number }>()
@@ -16,7 +17,7 @@ export let quitting = false
 export let exitCode = 0
 // 'exit' event is handled as the last resort, but it's not compatible with async callbacks
 onFirstEvent(process, ['exit', 'SIGQUIT', 'SIGTERM', 'SIGINT', 'SIGHUP', 'beforeExit'], async signal => {
-    console.log('Quitting with signal:', signal || 'unknown')
+    console.log(ct('quittingWithSignal', { signal: signal || 'unknown' }))
     quitting = true
     const byOrder = _.groupBy(Array.from(cbsOnExit), 'order') // this will be inherently ordered because keys are positive integers
     for (const recs of Object.values(byOrder)) {
@@ -24,7 +25,7 @@ onFirstEvent(process, ['exit', 'SIGQUIT', 'SIGTERM', 'SIGINT', 'SIGHUP', 'before
             try { return cb(signal) }
             // keep exit moving even when a synchronous cleanup fails after partially shutting down
             catch (e) {
-                console.error("Error while quitting", e)
+                console.error(ct('errorWhileQuitting'), e)
                 return Promise.reject(e)
             }
         }))
@@ -32,7 +33,7 @@ onFirstEvent(process, ['exit', 'SIGQUIT', 'SIGTERM', 'SIGINT', 'SIGHUP', 'before
             await ret
     }
     cbsOnExit.clear()
-    console.debug('Process exit')
+    console.debug(ct('processExit'))
     process.exit(exitCode)
 })
 

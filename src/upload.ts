@@ -21,6 +21,7 @@ import events from './events'
 import { rm, rename, utimes } from 'fs/promises'
 import { expiringCache } from './expiringCache'
 import { onProcessExit } from './first'
+import { ct } from './serverI18n'
 
 export const deleteUnfinishedUploadsAfter = defineConfig<undefined|number>('delete_unfinished_uploads_after', 86_400)
 export const minAvailableMb = defineConfig('min_available_mb', 100)
@@ -33,7 +34,7 @@ const waitingToBeDeleted: Record<string, {
 }> = {}
 onProcessExit(() => {
     if (!Object.keys(waitingToBeDeleted).length) return
-    console.log("Removing unfinished uploads")
+    console.log(ct('removingUnfinishedUploads'))
     for (const path in waitingToBeDeleted)
         try { fs.rmSync(path, { force: true }) }
         catch {}
@@ -97,7 +98,7 @@ export function uploadWriter(base: VfsNode, baseUri: string, filename: string, c
                 return fail(HTTP_INSUFFICIENT_STORAGE)
         }
         catch(e: any) { // warn, but let it through
-            console.warn("Can't check disk size:", e.message || String(e))
+            console.warn(ct('cannotCheckDiskSize'), e.message || String(e))
         }
     // optionally 'skip'
     if (ctx.query.existing === 'skip' && fs.existsSync(fullPath))
@@ -154,14 +155,14 @@ export function uploadWriter(base: VfsNode, baseUri: string, filename: string, c
         cancelDeletion(tempName)
         const tracked = { ctx, got: 0, size: stillToWrite }
         uploadingFiles.set(fullPath, tracked)
-        console.debug('Upload started')
+        console.debug(ct('uploadStarted'))
         // the file stream doesn't have an event for data being written, so we use 'data' of its feeder, which happens before, so we postpone a bit, trying to have a fresher number
         writeStream.on('data', () => setTimeout(() => tracked.got = bytesGot()))
 
         const lockMiddleware = pendingPromise<string>() // expose outside, to let know when all operations stopped
         let errored: any
         fileStream.on('error', (e: any) => {
-            console.warn('File error while uploading', filename, ':', e.message)
+            console.warn(ct('fileErrorUploading'), filename, ':', e.message)
             errored = e
             fail(HTTP_SERVER_ERROR, e.code) // don't send e.message as it may contain a disk paths we don't want to leak
         })
@@ -207,14 +208,14 @@ export function uploadWriter(base: VfsNode, baseUri: string, filename: string, c
                         void setCommentFor(dest, String(ctx.query.comment))
                     obj.uri = enforceFinal('/', baseUri) + pathEncode(basename(dest))
                     events.emit('uploadFinished', obj)
-                    console.debug("Upload finished", dest)
+                    console.debug(ct('uploadFinished'), dest)
                     if (resEvent) for (const cb of resEvent)
                         if (_.isFunction(cb))
                             cb(obj)
                 }
                 catch (err: any) {
                     void setUploadMeta(tempName, ctx)
-                    console.error("Couldn't rename temp to", dest, String(err))
+                    console.error(ct('couldNotRenameTemp'), dest, String(err))
                 }
             }
             finally {
@@ -284,7 +285,7 @@ export function uploadWriter(base: VfsNode, baseUri: string, filename: string, c
     }
 
     function fail(status=ctx.status, msg?: string) {
-        console.debug('Upload failed', status, msg||'')
+        console.debug(ct('uploadFailed'), status, msg||'')
         ctx.status = status
         if (msg)
             ctx.body = msg

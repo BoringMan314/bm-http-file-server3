@@ -4,15 +4,16 @@ import { useApiList } from './api'
 import { ChangeEvent, createElement as h, useMemo } from 'react'
 import { Autocomplete, AutocompleteProps, TextField } from '@mui/material'
 import { FieldProps } from '@hfs/mui-grid-form'
+import { t, useAdminLanguage } from './adminI18n'
 
 interface VfsPathFieldProps extends FieldProps<string> {
     autocompleteProps: Partial<AutocompleteProps<string, false, true, undefined>>
 }
 
-export default function VfsPathField({
-    value='', onChange, helperText, setApi, autocompleteProps, folders=true, files=true,
+export default function VfsPathField({value='', onChange, helperText, setApi, autocompleteProps, folders=true, files=true,
     InputLabelProps, slotProps, ...props
 }: VfsPathFieldProps) {
+    useAdminLanguage()
     const uri = dirname(value.replace(/\/{2,}/g, '/'))
     const { list, loading } = useApiList('get_file_list', {
         uri,
@@ -28,12 +29,13 @@ export default function VfsPathField({
     }, [list, uri])
     setApi?.({
         getError() {
-            return !folders && value?.endsWith('/') && "must be a file" || false
+            return !folders && value?.endsWith('/') && t('must be a file') || false
         }
     })
     return h(Autocomplete<string, false, true, undefined>, {
         value,
         options,
+        noOptionsText: t('No options'),
         isOptionEqualToValue: (o,v) => o === v || o === v + '/',
         loading,
         disableClearable: true,

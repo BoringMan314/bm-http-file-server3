@@ -4,7 +4,7 @@ import { createElement as h, Fragment, ReactNode, useCallback, useEffect, useSta
 import { Route, Router, Switch, useLocation } from 'wouter'
 import { useHashLocation } from 'wouter/use-hash-location'
 import MainMenu, { getMenuLabel, mainMenu, matchesMenuPath } from './MainMenu'
-import { AppBar, Box, BoxProps, Drawer, IconButton, ThemeProvider, Toolbar, Typography } from '@mui/material'
+import { AppBar, Box, BoxProps, Drawer, IconButton, MenuItem, Select, ThemeProvider, Toolbar, Typography } from '@mui/material'
 import { anyDialogOpen, Dialogs } from './dialog'
 import { useMyTheme } from './theme'
 import { Flex, useBreakpoint } from './mui'
@@ -18,14 +18,16 @@ import { useEventListener } from 'usehooks-ts'
 import { AriaOnly, isMac, useFixSticky, xlate } from './misc'
 import { loadLocale } from './locale'
 import { fillFlexParentSx } from './DataTable'
+import { adminLanguages, AdminLanguage, getAdminDayjsLocale, t, useAdminLanguage } from './adminI18n'
 
 // always use useMemo with setTitleSide
 export interface PageProps { setTitleSide: (content: ReactNode, fullWidth?: boolean) => void }
 
 function App() {
+    const { language } = useAdminLanguage()
     return h(ThemeProvider, { theme: useMyTheme() },
         h(ApplyTheme, {},
-            h(Localization, {},
+            h(Localization, { language },
                 h(LoginRequired, {},
                     h(Router, {
                         hook: useHashLocation,
@@ -39,16 +41,16 @@ function App() {
                     }) ))))
 }
 
-function Localization(props: any) {
+function Localization({ language, ...props }: { language: AdminLanguage } & Record<string, unknown>) {
     const [locale, setLocale] = useState('')
     useEffect(() => {
         let cancelled = false
-        loadLocale().then(locale => {
+        loadLocale(getAdminDayjsLocale(language)).then(locale => {
             if (!cancelled)
                 setLocale(locale || '')
         })
         return () => { cancelled = true }
-    }, [])
+    }, [language])
     return h(LocalizationProvider, { dateAdapter: AdapterDayjs, adapterLocale: locale, ...props })
 }
 
@@ -65,6 +67,7 @@ function ApplyTheme(props:any) {
 let titleSideSet: any
 
 function Routed() {
+    useAdminLanguage()
     const [location, navigate] = useLocation()
     const current = mainMenu.find(x => matchesMenuPath(x, location))
     let { title } = useSnapState()
@@ -96,7 +99,7 @@ function Routed() {
             set(null)
     })
     return h(Fragment, {},
-        h(AriaOnly, {}, h('h1', {}, "Admin-panel")),
+        h(AriaOnly, {}, h('h1', {}, t('adminPanel'))),
         !sideMenu && h(StickyBar, {
             title,
             titleSide,
@@ -124,10 +127,13 @@ function Routed() {
                     overflowX: 'clip', // keep wide things in space
                 }
             },
-                title && sideMenu && h(Flex, { gap: 4, '& .MuiAlert-root': { p: 0, backgroundColor: 'unset' } },
-                    h(Typography, { variant:'h2', sx: { mb: 2, whiteSpace: 'nowrap' } }, title),
-                    // @ts-ignore
-                    h(Flex, { ...titleSideFullWidth as any && { width: '100%' } }, titleSide),
+                title && sideMenu && h(Flex, { gap: 2, justifyContent: 'space-between', alignItems: 'flex-start', '& .MuiAlert-root': { p: 0, backgroundColor: 'unset' } },
+                    h(Flex, { gap: 4, flex: 1, minWidth: 0 },
+                        h(Typography, { variant:'h2', sx: { mb: 2, whiteSpace: 'nowrap' } }, title),
+                        // @ts-ignore
+                        h(Flex, { ...titleSideFullWidth as any && { width: '100%' } }, titleSide),
+                    ),
+                    h(AdminLanguageSelect),
                 ),
                 h(Switch, {
                     children: [
@@ -156,24 +162,46 @@ function StickyBar({ title, titleSide, openMenu, props }: { props?: BoxProps, ti
                 edge: 'start',
                 color: 'inherit',
                 sx: { mr: 2 },
-                'aria-label': "menu",
+                'aria-label': t('Menu'),
                 onClick: openMenu
             }, h(Menu)),
-            h(Flex, {
-                gap: 4,
-                props,
-                '& .MuiAlert-root': {
-                    p: 0,
-                    backgroundColor: 'unset',
-                    '& .MuiAlert-icon': { py: 0 },
-                    '& .MuiAlert-message': { py: '1px' }
-                }
-            },
-                h(Box as any, { component: 'h2', sx: { m: 0, whiteSpace: 'nowrap' } }, title),
-                titleSide
+            h(Box, { sx: { flex: 1, minWidth: 0 } },
+                h(Flex, {
+                    gap: 4,
+                    props,
+                    '& .MuiAlert-root': {
+                        p: 0,
+                        backgroundColor: 'unset',
+                        '& .MuiAlert-icon': { py: 0 },
+                        '& .MuiAlert-message': { py: '1px' }
+                    }
+                },
+                    h(Box as any, { component: 'h2', sx: { m: 0, whiteSpace: 'nowrap' } }, title),
+                    titleSide
+                ),
             ),
+            h(AdminLanguageSelect, { inAppBar: true }),
         )
     )
+}
+
+function AdminLanguageSelect({ inAppBar=false }: { inAppBar?: boolean }) {
+    const { language, setLanguage } = useAdminLanguage()
+    return h(Select as any, {
+        size: 'small',
+        value: language,
+        onChange: (e: any) => setLanguage(e.target.value as AdminLanguage),
+        'aria-label': t('adminLanguage'),
+        sx: {
+            minWidth: 128,
+            mt: { xs: '5px', md: '10px' },
+            mr: { xs: '5px', md: '10px' },
+            bgcolor: inAppBar ? 'background.paper' : undefined,
+            '& .MuiSelect-select': { py: .75 },
+        },
+    },
+        adminLanguages.map(({ code, label }) =>
+            h(MenuItem, { key: code, value: code }, label)))
 }
 
 export default App

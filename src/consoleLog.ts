@@ -2,6 +2,7 @@ import events from './events'
 import { formatTime, formatTimestamp } from './cross'
 import { createWriteStream } from 'fs'
 import { argv } from './argv'
+import { ct } from './serverI18n'
 
 export const consoleLog: Array<{ ts: Date, k: string, msg: string }> = []
 const originalConsoleLog = console.log
@@ -78,5 +79,5 @@ function isBrokenTerminalOutput(err: unknown) {
 }
 
 export function consoleHint(msg: string) {
-    console.log("HINT: "+ msg)
+    console.log(ct('hint', { msg }))
 }

@@ -22,11 +22,13 @@ import { alertDialog, confirmDialog, toast } from './dialog'
 import { useInterval } from 'usehooks-ts'
 import { PageProps } from './App'
 import { adminApis } from '../../src/adminApis'
+import { t, useAdminLanguage } from './adminI18n'
 
-export default function MonitorPage({ setTitleSide }: PageProps) {
+export default function MonitorPage({setTitleSide }: PageProps) {
+    const { language } = useAdminLanguage()
     setTitleSide(useMemo(() =>
-            h(Alert, { severity: 'info', sx: { display: { xs: 'none', sm: 'inherit' }  } }, "If you are behind a proxy, connections list may not match browsers activity"),
-        []))
+            h(Alert, { severity: 'info', sx: { display: { xs: 'none', sm: 'inherit' }  } }, t("If you are behind a proxy, connections list may not match browsers activity")),
+        [language]))
     return h(Fragment, {},
         h(MoreInfo),
         h(Connections),
@@ -44,27 +46,27 @@ function MoreInfo() {
     const formatDuration = createDurationFormatter({ maxTokens: 2, skipZeroes: true })
     return element || h(Box, { sx: { display: 'flex', flexWrap: 'wrap', gap: { xs: .5, md: 1 }, mb: { xs: 1, sm: 2 } } },
         (allInfo || md) && pair('started', {
-            label: "Uptime",
+            label: t("Uptime"),
             render: x => formatDuration(Date.now() - +new Date(x)),
-            title: x => "Started: " + formatTimestamp(x),
+            title: x => t("Started: {time}", { time: formatTimestamp(x) }),
         }),
         (allInfo || sm) && pair('sent_got', {
-            render: x => ({ Sent: formatBytes(x[0]), Got: formatBytes(x[1]) }),
-            title: x => "Since: " + formatTimestamp(x[2]),
-            onDelete: () => confirmDialog("Reset stats?")
+            render: x => ({ [t("Sent")]: formatBytes(x[0]), [t("Got")]: formatBytes(x[1]) }),
+            title: x => t("Since: {time}", { time: formatTimestamp(x[2]) }),
+            onDelete: () => confirmDialog(t("Reset stats?"))
                 .then(yes => yes && apiCall('clear_persistent', { k: ['totalSent', 'totalGot'] })
-                    .then(() => alertDialog("Done", 'success'), alertDialog))
+                    .then(() => alertDialog(t("Done"), 'success'), alertDialog))
         }),
-        pair('outSpeedKb', { label: "Output", render: formatSpeedK, minWidth: '8.5em' }),
-        pair('inSpeedKb', { label: "Input", render: formatSpeedK, minWidth: '8.5em' }),
-        (allInfo || sm) && pair('ips', { label: "IPs", title: () => stats && `${stats.connections.toLocaleString()} connections` }),
-        (md || allInfo && md || status?.http?.error) && pair('http', { label: "HTTP", render: port }),
-        (md || allInfo && md || status?.https?.error) && pair('https', { label: "HTTPS", render: port }),
-        (xl || allInfo) && pair('ram', { label: "RAM", render: formatBytes }),
+        pair('outSpeedKb', { label: t("Output"), render: formatSpeedK, minWidth: '8.5em' }),
+        pair('inSpeedKb', { label: t("Input"), render: formatSpeedK, minWidth: '8.5em' }),
+        (allInfo || sm) && pair('ips', { label: t('IPs'), title: () => stats && t("{n} connections", { n: stats.connections.toLocaleString() }) }),
+        (md || allInfo && md || status?.http?.error) && pair('http', { label: t('HTTP'), render: port }),
+        (md || allInfo && md || status?.https?.error) && pair('https', { label: t('HTTPS'), render: port }),
+        (xl || allInfo) && pair('ram', { label: t('RAM'), render: formatBytes }),
         !xl && h(IconBtn, {
             size: 'small',
             icon: allInfo ? ChevronLeft : ChevronRight,
-            title: "Show more",
+            title: t("Show more"),
             onClick: () => setAllInfo(x => !x)
         }),
     )
@@ -107,7 +109,7 @@ function MoreInfo() {
     function port(v: any): ReturnType<Render> {
         return v.listening ? ["port " + v.port, 'success']
             : v.error ? [v.error, 'error']
-                : "off"
+                : t("off")
     }
 
 }
@@ -121,7 +123,7 @@ function Connections() {
         (!monitorOnlyFiles ? list : list?.filter((x: any) => x.op)) ?? [],
         [!pause && list, monitorOnlyFiles]) //eslint-disable-line
     const logAble = useBreakpoint('md')
-    const [wantLog, wantLogButton] = useToggleButton("Show log", "Hide log", v => ({
+    const [wantLog, wantLogButton] = useToggleButton(t("Show log"), t("Hide log"), v => ({
         icon: History,
         sx: { rotate: v ? 0 : '180deg' },
     }), state.monitorWithLog)
@@ -134,11 +136,11 @@ function Connections() {
                     fullWidth: false,
                     value: monitorOnlyFiles,
                     onChange: v => state.monitorOnlyFiles = v,
-                    options: { "Show downloads+uploads": true, "Show all connections": false }
+                    options: { [t("Show downloads+uploads")]: true, [t("Show all connections")]: false }
                 }),
             ),
             logAble && h(Flex, { flex: 1, justifyContent: 'space-between' },
-                wantLog ? "Live log" : h(Box),
+                wantLog ? t("Live log") : h(Box),
                 wantLogButton),
         ),
         h(Grid, { container: true, sx: { flex: 1 }, columnSpacing: 1 },
@@ -149,21 +151,21 @@ function Connections() {
                     rows,
                     getRowId: (row: any) => row.ip + ':' + row.port,
                     fillFlex: true,
-                    noRows: monitorOnlyFiles && "No downloads/uploads at the moment",
+                    noRows: monitorOnlyFiles && t("No downloads/uploads at the moment"),
                     actionsHeader: pauseButton,
                     footerSide: () => h(Flex, {},
                         h(Btn, {
                             size: 'small',
                             icon: DisconnectIcon,
                             labelIf: 'xl',
-                            confirm: "Disconnecting all connections but localhost. Continue?",
-                            onClick: () => apiCall('disconnect', { allButLocalhost: true }).then(x => toast(`Disconnected: ${x.result}`))
-                        }, "Disconnect all")
+                            confirm: t("Disconnecting all connections but localhost. Continue?"),
+                            onClick: () => apiCall('disconnect', { allButLocalhost: true }).then(x => toast(t("Disconnected: {n}", { n: x.result })))
+                        }, t("Disconnect all"))
                     ),
                     columns: [
                         {
                             field: 'ip',
-                            headerName: "Address",
+                            headerName: t("Address"),
                             flex: 1,
                             maxWidth: 400,
                             renderCell: ({ row, value }) => ipForUrl(value) + ' :' + row.port,
@@ -175,18 +177,18 @@ function Connections() {
                         },
                         {
                             field: 'country',
-                            headerName: "Country",
+                            headerName: t("Country"),
                             hideUnder: config.data?.[CFG.geo_enable] !== true || 'md',
                             renderCell: ({ value, row }) => h(Country, { code: value, ip: row.ip }),
                         },
                         {
                             field: 'user',
-                            headerName: "User",
+                            headerName: t("User"),
                             hideUnder: 'md',
                         },
                         {
                             field: 'started',
-                            headerName: "Started",
+                            headerName: t("Started"),
                             type: 'dateTime',
                             width: 96,
                             hideUnder: 'lg',
@@ -194,13 +196,13 @@ function Connections() {
                         },
                         {
                             field: 'path',
-                            headerName: "File",
+                            headerName: t("File"),
                             flex: 1.5,
                             renderCell({ value, row }) {
                                 if (!value || !row.op) return
                                 const rowContentSx = { display: 'flex', alignItems: 'center', height: '100%', minWidth: 0, gap: 1 } as const
                                 if (row.op === 'browsing')
-                                    return h(Box, { sx: rowContentSx }, h(Box, {}, value, h(Box, { sx: { fontSize: 'x-small' } }, "browsing")))
+                                    return h(Box, { sx: rowContentSx }, h(Box, {}, value, h(Box, { sx: { fontSize: 'x-small' } }, t("browsing"))))
                                 // keep icon and filename on the same row: datagrid v7 wraps cell content differently than before
                                 return h(Box, { sx: rowContentSx },
                                     h(IconProgress, {
@@ -223,7 +225,7 @@ function Connections() {
                         },
                         {
                             field: 'outSpeedKb',
-                            headerName: "Speed",
+                            headerName: t("Speed"),
                             width: 110,
                             hideUnder: 'sm',
                             type: 'number',
@@ -232,24 +234,24 @@ function Connections() {
                         },
                         {
                             field: 'sent',
-                            headerName: "Sent",
+                            headerName: t("Sent"),
                             type: 'number',
                             hideUnder: 'md',
                             renderCell: ({ value, row }) => formatBytes(Math.max(value || 0, row.got || 0))
                         },
                         {
                             field: 'v',
-                            headerName: "Protocol",
+                            headerName: t("Protocol"),
                             align: 'center',
                             hideUnder: Infinity,
                             renderCell: ({ value }) => h(Fragment, {},
                                 "IPv" + value,
-                                iconTooltip(Lock, "HTTPS", { opacity: .5 })
+                                iconTooltip(Lock, t('HTTPS'), { opacity: .5 })
                             )
                         },
                         {
                             field: 'agent',
-                            headerName: "Agent",
+                            headerName: t("Agent"),
                             hideUnder: 'lg',
                             renderCell: ({ value }) => agentIcons(value)
                         },
@@ -258,11 +260,11 @@ function Connections() {
                     actions: ({ row }) => [
                         h(IconBtn, {
                             icon: DisconnectIcon,
-                            title: "Disconnect",
+                            title: t("Disconnect"),
                             doneMessage: true,
                             onClick: () => apiCall('disconnect', _.pick(row, ['ip', 'port'])).then(x => x.result > 0)
                         }),
-                        h(BlockIpBtn, { ip: row.ip, comment: "From monitoring", disabled: row.ip === props?.you }),
+                        h(BlockIpBtn, { ip: row.ip, comment: t("From monitoring"), disabled: row.ip === props?.you }),
                     ]
                 }),
             ),

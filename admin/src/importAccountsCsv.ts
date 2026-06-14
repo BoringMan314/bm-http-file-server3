@@ -7,6 +7,7 @@ import { apiNewPassword, HTTP_CONFLICT, prefix, readFile, selectFiles } from './
 import { IconProgress } from './mui'
 import { NumberField, BoolField } from '@hfs/mui-grid-form'
 import Parser from '@gregoranders/csv';
+import { t, useAdminLanguage } from './adminI18n'
 
 export async function importAccountsCsv(cb?: () => void) {
     selectFiles(async list => {
@@ -26,31 +27,31 @@ export async function importAccountsCsv(cb?: () => void) {
             overwriteExistingAccounts: false,
         }
         const cfg = await formDialog<typeof initialConfig>({
-            title: "Import accounts from CSV",
+            title: t("Import accounts from CSV"),
             dialogProps: { maxWidth: 'sm' },
             values: initialConfig,
             form: values => {
                 const row = rows[values.skipFirstLines || 0]
                 const rec = getRec(row, { ...initialConfig, ...values })
                 return {
-                    save: { startIcon: h(Upload), children: 'Go' },
+                    save: { startIcon: h(Upload), children: t('Go') },
                     fields: [
-                        h(Box, { sx: { p: 1 } }, "Total lines:", rows.length),
-                        { k: 'skipFirstLines', comp: NumberField, max: rows.length-1, typing: true, md: 6,
-                            helperText: h(Fragment, {}, "First line: ", h('code', {}, row.join(', ')) ),
+                        h(Box, { sx: { p: 1 } }, t("Total lines:"), rows.length),
+                        { k: 'skipFirstLines', label: t('Skip first lines'), comp: NumberField, max: rows.length-1, typing: true, md: 6,
+                            helperText: h(Fragment, {}, t("First line: "), h('code', {}, row.join(', ')) ),
                         },
-                        { k: 'overwriteExistingAccounts', comp: BoolField, md: 6 },
-                        { k: 'usernameColumn', ...colField,
-                            helperText: h(Fragment, {}, "First username: ", rec.u),
+                        { k: 'overwriteExistingAccounts', label: t('Overwrite existing accounts'), comp: BoolField, md: 6 },
+                        { k: 'usernameColumn', label: t('Username column'), ...colField,
+                            helperText: h(Fragment, {}, t("First username: "), rec.u),
                         },
-                        { k: 'passwordColumn', ...colField,
-                            helperText: h(Fragment, {}, "First password: ", rec.p),
+                        { k: 'passwordColumn', label: t('Password column'), ...colField,
+                            helperText: h(Fragment, {}, t("First password: "), rec.p),
                         },
-                        { k: 'groupColumn', ...colField,
-                            helperText: h(Fragment, {}, "First group: ", rec.g),
+                        { k: 'groupColumn', label: t('Group column'), ...colField,
+                            helperText: h(Fragment, {}, t("First group: "), rec.g),
                         },
-                        { k: 'redirectColumn', ...colField,
-                            helperText: h(Fragment, {}, "First redirect: ", rec.r),
+                        { k: 'redirectColumn', label: t('Redirect column'), ...colField,
+                            helperText: h(Fragment, {}, t("First redirect: "), rec.r),
                         },
                     ],
                 }
@@ -58,7 +59,7 @@ export async function importAccountsCsv(cb?: () => void) {
         })
         if (!cfg) return
         const { close } = newDialog({
-            title: "Importing...",
+            title: t("Importing..."),
             Content() {
                 const [progress, setProgress] = useState(0)
                 const [record, setRecord] = useState<undefined | ReturnType<typeof getRec>>()
@@ -99,10 +100,10 @@ export async function importAccountsCsv(cb?: () => void) {
                         finally {
                             close()
                             const good = total - bad - already
-                            const msg = "Results: " + [
-                                prefix('', bad, " failed"),
-                                prefix('', good, " succeeded"),
-                                prefix('', already, " skipped because already present"),
+                            const msg = t("Results:") + ' ' + [
+                                bad && t("{n} import failed", { n: bad }),
+                                good && t("{n} import succeeded", { n: good }),
+                                already && t("{n} import skipped existing", { n: already }),
                             ].filter(Boolean).join(', ')
                             alertDialog(msg, !good && bad ? 'error' : (bad || already) ? 'warning' : 'success')
                             cb?.()

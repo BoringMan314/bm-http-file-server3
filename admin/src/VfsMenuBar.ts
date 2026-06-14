@@ -17,8 +17,10 @@ import { alertDialog, promptDialog } from './dialog'
 import { formatDiskSpace } from './FilePicker'
 import { getDiskSpaces } from '../../src/util-os'
 import { adminApis } from '../../src/adminApis'
+import { t, useAdminLanguage } from './adminI18n'
 
-export default function VfsMenuBar({ statusApi, add }: { add: ReactNode, statusApi: ApiObject }) {
+export default function VfsMenuBar({statusApi, add }: { add: ReactNode, statusApi: ApiObject }) {
+    useAdminLanguage()
     const { vfsModified, vfsUndo } = useSnapState()
     return h(Flex, {
         zIndex: 2,
@@ -31,22 +33,22 @@ export default function VfsMenuBar({ statusApi, add }: { add: ReactNode, statusA
         h(Btn, {
             ref: useCtrlShortcutButton(['s']).ref,
             icon: Save,
-            title: "Save\n(ctrl+s)",
-            disabled: !vfsModified && "No changes to save",
+            title: t("Save\\n(ctrl+s)"),
+            disabled: !vfsModified && t("No changes to save"),
             modified: vfsModified,
             doneAnimation: true,
             onClick: () => saveVfs().finally(statusApi.reload)
         }),
         h(Btn, {
             icon: Undo,
-            title: "Undo/redo last change",
-            disabled: !vfsUndo && "No changes to undo",
+            title: t("Undo/redo last change"),
+            disabled: !vfsUndo && t("No changes to undo"),
             onClick: undoVfs,
         }),
         reloadBtn(() => reloadVfs()),
         h(Btn, {
             icon: Storage,
-            title: "Disk spaces",
+            title: t("Disk spaces"),
             onClick: () => apiCall<Awaited<ReturnType<typeof getDiskSpaces>>>('get_disk_spaces').then(res =>
                 alertDialog(h(List, { dense: true }, res.map(x => h(ListItem, { key: x.name },
                     h(ListItemIcon, {}, h(Storage)),
@@ -55,7 +57,7 @@ export default function VfsMenuBar({ statusApi, add }: { add: ReactNode, statusA
                         primary: x.name + prefix(' (', x.description, ')'),
                         secondary: formatDiskSpace(x)
                     }),
-                ))), { title: "Disk spaces" })
+                ))), { title: t("Disk spaces") })
                     .then(() => false), // no success-animation for IconBtn
                 alertDialog)
         }),
@@ -64,16 +66,17 @@ export default function VfsMenuBar({ statusApi, add }: { add: ReactNode, statusA
     )
 }
 
-export function AddVfsBtn(props: Partial<ButtonProps>) {
+export function AddVfsBtn({ children, ...props }: Partial<ButtonProps>) {
     return h(MenuButton, {
         variant: 'contained',
         icon: Add,
-        title: "Add item to virtual file system",
+        title: t("Add item to virtual file system"),
+        children: children ?? t("Add"),
         ...props,
         items: [
-            { children: "virtual folder", onClick: addVirtual },
-            { children: "file or folder from disk", onClick: addFiles },
-            { children: "web-link", onClick: addLink  },
+            { children: t("virtual folder"), onClick: addVirtual },
+            { children: t("file or folder from disk"), onClick: addFiles },
+            { children: t("web-link"), onClick: addLink  },
         ]
     })
 }
@@ -87,15 +90,15 @@ function SystemIntegrationButton({ platform }: { platform: string | undefined })
         variant: 'outlined',
         doneMessage: true,
         ...(!integrated?.is ? {
-            children: "System integration",
+            children: t("System integration"),
             async onClick() {
                 const msg = h(Box, { sx: { width: { xs: '100%', sm: '34em' } } },
                     h('img', { src: 'win-shell.png', style: { display: 'block', width: '100%' }  }),
-                    h(Alert, { severity: 'info' }, "We are going to add a command in the right-click of Windows File Manager.",
-                        h(Box, {}, "It will also automatically copy the URL, ready to paste!")),
+                    h(Alert, { severity: 'info' }, t("We are going to add a command in the right-click of Windows File Manager."),
+                        h(Box, {}, t("It will also automatically copy the URL, ready to paste!"))),
                 )
                 const parent = await promptDialog(msg, {
-                    field: { comp: VfsPathField, files: false, label: "Add to this folder", placeholder: "home",
+                    field: { comp: VfsPathField, files: false, label: t("Add to this folder"), placeholder: t("home"),
                         autoFocus: sm }, // this dialog is tall, and mobile keyboard will disrupt user's ability to view its content
                     form: { saveOnEnter: false }
                 })
@@ -103,7 +106,7 @@ function SystemIntegrationButton({ platform }: { platform: string | undefined })
             }
         } : {
             confirm: true,
-            children: "Remove integration",
+            children: t("Remove integration"),
             onClick: () => apiCall('windows_remove').then(reload),
         })
     })

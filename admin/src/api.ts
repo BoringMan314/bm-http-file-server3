@@ -11,6 +11,7 @@ import { Refresh } from '@mui/icons-material'
 import { produce, Draft } from 'immer'
 import { ApiError, apiEvents, setDefaultApiCallOptions, useApi } from '@hfs/shared/api'
 import { ApiHandler } from '../../src/apiMiddleware'
+import { t, useAdminLanguage } from './adminI18n'
 export * from '@hfs/shared/api'
 
 setDefaultApiCallOptions({
@@ -22,7 +23,15 @@ setDefaultApiCallOptions({
     }
 })
 
-const ERRORS = { timeout: "Operation timeout" }
+function formatApiError(err: any) {
+    const msg = (err?.message || String(err)).replace(/^Error: /, '')
+    return xlate(msg, {
+        timeout: t("Operation timeout"),
+        "Server unreachable": t("Server unreachable"),
+        "Connection error": t("Connection error"),
+    })
+}
+export { formatApiError }
 // expand useApi with things that cannot be shared with Frontend
 export type ApiObject<T extends ApiHandler=any> = ReturnType<typeof useApiEx<T>>
 export function useApiEx<T extends ApiHandler=any>(...args: Parameters<typeof useApi>) {
@@ -31,8 +40,8 @@ export function useApiEx<T extends ApiHandler=any>(...args: Parameters<typeof us
         ...res,
         element: useMemo(() =>
             !args[0] ? null
-                : res.error ? h(Alert, { severity: 'error' }, xlate(String(res.error), ERRORS),
-                                    h(IconBtn, { icon: Refresh, title: "Reload", onClick: res.reload, sx: { m:'-10px 0 -8px 16px' } }) )
+                : res.error ? h(Alert, { severity: 'error' }, formatApiError(res.error),
+                                    h(IconBtn, { icon: Refresh, title: t("Reload"), onClick: res.reload, sx: { m:'-10px 0 -8px 16px' } }) )
                     : res.data === undefined ? spinner()
                         : null,
             Object.values(res))
@@ -79,7 +88,7 @@ export function useApiList<T=any, S=T>(cmd:string|Falsy, params: Dict={}, { map,
                     setConnecting(false)
                     return setTimeout(() => apply.flush()) // this trick we'll cause first entries to be rendered almost immediately, while the rest will be subject to normal debouncing
                 case 'error':
-                    setError("Connection error")
+                    setError(t("Connection error"))
                     setTimeout(reload, 1000)
                     return stop()
                 case 'closed':
@@ -187,7 +196,7 @@ export function useApiList<T=any, S=T>(cmd:string|Falsy, params: Dict={}, { map,
         reload,
         enabled: Boolean(cmd),
         element: connecting || initializing || loading ? spinner()
-            : error ? h(Alert, { severity: 'error', sx: { flex: 1 } }, err2msg(error))
+            : error ? h(Alert, { severity: 'error', sx: { flex: 1 } }, formatApiError(error))
             : null
     }
 

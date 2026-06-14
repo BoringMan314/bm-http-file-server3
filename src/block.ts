@@ -5,6 +5,7 @@ import { disconnect, getConnections, normalizeIp } from './connections'
 import { makeNetMatcher, MINUTE, netMatches, onlyTruthy } from './misc'
 import { isIP, Socket } from 'net'
 import _ from 'lodash'
+import { ct } from './serverI18n'
 
 export interface BlockingRule { ip: string, comment?: string, expire?: Date, disabled?: boolean }
 
@@ -35,7 +36,7 @@ setInterval(() => { // twice a minute, check if any block has expired
     const next = block.get().filter(x => !x.expire || x.expire > now)
     const n = block.get().length - next.length
     if (!n) return
-    console.log("Blocking rules:", n, "expired")
+    console.log(ct('blockingRulesExpired', { count: n }))
     block.set(next)
 }, MINUTE/2)
 

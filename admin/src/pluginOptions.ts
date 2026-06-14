@@ -17,6 +17,7 @@ import { formDialog, toast } from './dialog'
 import { useApiEx, useApiList } from './api'
 import { adminApis } from '../../src/adminApis'
 import { Account, account2icon } from './AccountsPage'
+import { t, useAdminLanguage } from './adminI18n'
 
 export async function showPluginOptions(row: any, maxWidth: string) {
     const {id} = row
@@ -27,11 +28,11 @@ export async function showPluginOptions(row: any, maxWidth: string) {
     // support css values without having to wrap in sx, as in DialogProps it only supports breakpoints
     const showOptions = Boolean(row.config)
     const values = await formDialog({
-        title: showOptions ? `Options for ${id}` : `Log for ${id}`,
+        title: showOptions ? t('Options for {id}', { id }) : t('Log for {id}', { id }),
         form: values => ({
             before: row.description && h(Box, { sx: { mx: 2, mb: 2 } }, row.description),
             fields: makeFields(callable(row.config, values) || {}, values),
-            save: showOptions ? { children: "Save and close" } : false,
+            save: showOptions ? { children: t("Save and close") } : false,
             barSx: { gap: 1 },
             apiRef,
             addToBar: [h(Btn, {
@@ -41,7 +42,7 @@ export async function showPluginOptions(row: any, maxWidth: string) {
                     if (await apiRef.current?.validate())
                         await save(values)
                 }
-            }, "Save")],
+            }, t("Save"))],
         }),
         values: lastSaved,
         dialogProps: _.merge({ maxWidth: 'md', sx: { m: 'auto' } }, // center content when it is smaller than mobile (because of full-screen)
@@ -61,14 +62,14 @@ export async function showPluginOptions(row: any, maxWidth: string) {
                 } }, children),
                 h(Paper, { elevation: 1, sx: { position: 'relative', fontFamily: 'monospace', flex: 1, minWidth: 'min(40em, 90vw)', minHeight: '20em', px: .5 } },
                     h(Box, { sx: { my: .5, pb: .5, borderBottom: '1px solid', display: 'flex', alignItems: 'center', justifyContent: 'space-between' } },
-                        "Output",
-                        h(Btn, { size: 'small', sx: { p: 0 }, onClick() { setList([]) } }, "Clear")
+                        t("Output"),
+                        h(Btn, { size: 'small', sx: { p: 0 }, onClick() { setList([]) } }, t("Clear"))
                     ),
                     h(Box, {
                         ref: useAutoScroll(list),
                         sx: { position: 'absolute', bottom: 0, top: '31px', left: 0, right: 0, overflowY: 'auto' }
                     },
-                        !list.length && h(Box, { sx: { p: 1 } }, "Log is empty"),
+                        !list.length && h(Box, { sx: { p: 1 } }, t("Log is empty")),
                         h(Box, {
                             sx: {
                                 textIndent: '-1em', pl: '1em',
@@ -99,7 +100,7 @@ export async function showPluginOptions(row: any, maxWidth: string) {
     async function save(values: any) {
         await apiCall('set_plugin', { id, config: values })
         Object.assign(lastSaved, values)
-        toast("Configuration saved")
+        toast(t('Configuration saved'))
     }
 }
 
@@ -129,7 +130,7 @@ function makeFields(config: any, values: any) {
             rest.fields = (values: unknown) => _.map(makeFields(callable(fields, values), values), (v,k) => v && ({ k, ...v, defaultValue: undefined })).filter(Boolean)
         }
         if (defaultValue !== undefined && type === 'boolean')
-            rest.placeholder = `Default value is ${JSON.stringify(defaultValue)}`
+            rest.placeholder = t('Default value is {value}', { value: JSON.stringify(defaultValue) })
         return { k, comp, ...rest }
     })
 }
@@ -166,7 +167,7 @@ function UsernameField({ value, onChange, multiple, groups, ...rest }: FieldProp
         renderOption: (x: UsernameOption) => {
             if (!x.a)
                 return h('span', { style: { textDecoration: 'line-through' } }, x.label)
-            const icon = x.a.isGroup && account2icon(x.a) || x.a.adminActualAccess && iconTooltip(MilitaryTech, "Can login into Admin")
+            const icon = x.a.isGroup && account2icon(x.a) || x.a.adminActualAccess && iconTooltip(MilitaryTech, t("Can login into Admin"))
             return !icon ? x.label
                 : h('span', {},
                     h('span', { style: { marginLeft: -8, marginRight: 8 } }, icon),
@@ -183,7 +184,7 @@ function ColorField(rest: FieldProps<string>) {
                 icon: Clear,
                 size: 'small',
                 sx: { position: 'absolute', right: 4 },
-                title: "Clear",
+                title: t("Clear"),
                 onClick(event) {
                     rest.onChange(null as any, { was: rest.value, event: event })
                 }

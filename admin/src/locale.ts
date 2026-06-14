@@ -13,12 +13,12 @@ function lang2locale(lang: string): string | undefined {
         || undefined
 }
 
-export function getLocale() {
-    return findDefined([navigator.language, ...navigator.languages], lang2locale)
+export function getLocale(preferred?: string) {
+    return findDefined([preferred, navigator.language, ...navigator.languages], x => x && lang2locale(x))
 }
 
-export async function loadLocale() {
-    const locale = getLocale()
+export async function loadLocale(preferred?: string) {
+    const locale = getLocale(preferred)
     if (!locale)
         return
     // AdapterDayjs needs the matching dayjs locale module registered before adapterLocale can use it.

@@ -12,6 +12,7 @@ import fs from 'fs/promises'
 import { defineConfig } from './config'
 import events from './events'
 import { selfCheck } from './selfCheck'
+import { ct } from './serverI18n'
 
 let acmeOngoing = false
 const acmeTokens: Dict<string> = {}
@@ -86,7 +87,7 @@ async function generateSSLCert(domain: string, email?: string, altNames?: string
             async challengeCreateFn(_, c, ka) { acmeTokens[c.token] = ka },
             async challengeRemoveFn(_, c) { delete acmeTokens[c.token] },
         })
-        console.log("ACME certificate generated")
+        console.log(ct('acmeCertificateGenerated'))
         return { key, cert }
     }
     finally {
@@ -131,7 +132,7 @@ const renewCert = debounceAsync(async () => {
     const validTo = new Date(cert.validTo)
     // not expiring in a month
     if (now > new Date(cert.validFrom) && now < validTo && validTo.getTime() - now.getTime() >= 30 * DAY)
-        return console.log("Certificate still good")
+        return console.log(ct('certificateStillGood'))
     await makeCert(domain, undefined, altNames)
         .catch(e => console.log(acmeRenewError = `Error renewing certificate, expiring ${formatDate(validTo)}: ${String(e.message || e)}`))
 }, { retain: DAY, retainFailure: HOUR })

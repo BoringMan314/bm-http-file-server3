@@ -14,10 +14,12 @@ import _ from 'lodash'
 import { PLUGIN_ERRORS } from './PluginsPage'
 import { Flex, IconBtn } from './mui'
 import { Box } from '@mui/material'
+import { t, useAdminLanguage } from './adminI18n'
 
 const HFS_GITHUB_ACCOUNT = HFS_REPO.replace(/\/.+/, `/`)
 
 export default function OnlinePlugins() {
+    useAdminLanguage()
     const [search, setSearch] = useState('')
     const debouncedSearch = useDebounce(search, 1000)
     const { list, error, initializing } = useApiList('get_online_plugins', { text: debouncedSearch })
@@ -28,12 +30,12 @@ export default function OnlinePlugins() {
             onChange: setSearch as any,
             start: h(Search),
             typing: true,
-            label: "Search text"
+            label: t("Search text")
         }),
         h(DataTable, {
-            error: error && err2msg(xlate(error, PLUGIN_ERRORS)),
+            error: error && err2msg(t(xlate(error, PLUGIN_ERRORS))),
             rows: list.length ? list : [], // workaround for DataGrid bug causing 'no rows' message to be not displayed after 'loading' was also used
-            noRows: "No compatible plugins have been found",
+            noRows: t("No compatible plugins have been found"),
             fillFlex: true,
             initializing,
             columnVisibilityModel: snap.onlinePluginsColumns,
@@ -41,34 +43,36 @@ export default function OnlinePlugins() {
             columns: [
                 {
                     field: 'id',
-                    headerName: "name",
+                    headerName: t("name"),
                     flex: 1,
                     renderCell: renderName,
                     mergeRender: { description: { sx: { fontSize: 'x-small' } } },
                 },
                 {
                     field: 'version',
+                    headerName: t("version"),
                     width: 70,
                 },
                 {
                     field: 'pushed_at',
-                    headerName: "last update",
+                    headerName: t("last update"),
                     valueGetter: (value) => new Date(value).toLocaleDateString(),
                 },
                 {
                     field: 'license',
+                    headerName: t("license"),
                     width: 80,
                 },
-                themeField,
+                themeField(),
                 {
-                    ...descriptionField,
+                    ...descriptionField(),
                     flex: 3,
                     hideUnder: 'sm',
                 },
                 {
                     field: 'stargazers_count',
                     width: 50,
-                    headerName: "stars",
+                    headerName: t("stars"),
                     align: 'center',
                     hideUnder: 'sm',
                 },
@@ -76,9 +80,9 @@ export default function OnlinePlugins() {
             actions: ({ row, id }) => [
                 h(IconBtn, {
                     icon: Download,
-                    title: "Install",
+                    title: t("Install"),
                     progress: row.downloading,
-                    disabled: row.installed && "Already installed",
+                    disabled: row.installed && t("Already installed"),
                     tooltipProps: { placement:'bottom-end' }, // workaround problem with horizontal scrolling by moving the tooltip leftward
                     onClick: () => installPluginFromResult(row)
                 }),
@@ -113,15 +117,15 @@ export async function installPluginFromResult(row: any) {
         if (!await confirmDialog(
             h(Flex, { vert: true, alignItems: 'center' },
                 h(Warning, { color: 'warning', fontSize: 'large' }),
-                "Proceed only if you trust this plugin",
-                h(Box, { sx: { fontSize: '60%' } }, "A plugin has the same power of any other software"),
+                t("Proceed only if you trust this plugin"),
+                h(Box, { sx: { fontSize: '60%' } }, t("A plugin has the same power of any other software")),
             ))) return
-    if (row.missing && !await confirmDialog("This will also install: " + _.map(row.missing, 'repo').join(', '))) return
+    if (row.missing && !await confirmDialog(t("This will also install: {deps}", { deps: _.map(row.missing, 'repo').join(', ') }))) return
     const branch = row.branch || row.default_branch
     return installPlugin(row.id, branch).catch((e: any) => {
         if (e.code !== HTTP_FAILED_DEPENDENCY)
             return alertDialog(e)
-        const msg = h(Fragment, {}, "This plugin has some dependencies unmet:",
+        const msg = h(Fragment, {}, t("This plugin has some dependencies unmet:"),
             e.data.map((x: any) => h('li', { key: x.repo }, x.repo + ': ' + x.error)) )
         return alertDialog(msg, 'error')
     })
@@ -130,7 +134,7 @@ export async function installPluginFromResult(row: any) {
 async function installPlugin(id: string, branch?: string): Promise<any> {
     try {
         const res = await apiCall('download_plugin', { id, branch, stop: true }, { timeout: false })
-        if (await confirmDialog(`Plugin ${id} downloaded`, { trueText: "Start" }))
+        if (await confirmDialog(t("Plugin {id} downloaded", { id }), { trueText: t("Start") }))
             await startPlugin(res.id)
     }
     catch(e:any) {
@@ -138,7 +142,7 @@ async function installPlugin(id: string, branch?: string): Promise<any> {
         if (e.code === HTTP_FAILED_DEPENDENCY) // try to install automatically
             for (const x of e.cause)
                 if (x.error === 'missing') {
-                    toast("Installing dependency: " + x.repo)
+                    toast(t("Installing dependency: {repo}", { repo: x.repo }))
                     await installPlugin(x.repo)
                     done = true
                 }

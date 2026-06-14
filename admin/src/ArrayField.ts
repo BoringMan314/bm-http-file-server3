@@ -6,9 +6,10 @@ import { GridActionsCellItem, GridAlignment, GridColDef } from '@mui/x-data-grid
 import { BoolField, FieldDescriptor, FieldProps, labelFromKey } from '@hfs/mui-grid-form'
 import { Box, FormHelperText, FormLabel } from '@mui/material'
 import _ from 'lodash'
-import { Center, Flex, IconBtn, mergeSx, useBreakpoint } from './mui'
+import { Btn, Center, Flex, IconBtn, mergeSx, useBreakpoint } from './mui'
 import { DataTable, DataTableColumn } from './DataTable'
 import { DateTimeField } from './DateTimeField'
+import { t, useAdminLanguage } from './adminI18n'
 
 type ArrayFieldProps<T> = FieldProps<T[] | Dict<T>> & {
     fields: Functionable<FieldDescriptor[] & {
@@ -34,6 +35,7 @@ export function ArrayField<T extends object>({
     label, helperText, fields, value, onChange, onError, setApi, reorder, prepend, noRows, valuesForAdd, autoRowHeight,
     dialog, form, details, objectK, saveOn, height, error, sx, ...rest
 }: ArrayFieldProps<T>) {
+    const { language } = useAdminLanguage()
     const valueA = Array.isArray(value) ? value
         : !objectK || !value ? [] // avoid crash if non-array values are passed, especially developing plugins
             : Object.entries(value).map(([k, v]) => ({ [objectK]: k, ...v }))
@@ -57,6 +59,7 @@ export function ArrayField<T extends object>({
         // field-level error is rendered through helperText, not forwarded to the DOM wrapper
         h(Box, { ...rest, sx: mergeSx({ height }, sx) },
             h(DataTable, {
+                key: language,
                 rows,
                 details,
                 ...autoRowHeight && { getRowHeight: () => 'auto' as const },
@@ -68,7 +71,7 @@ export function ArrayField<T extends object>({
                 hideFooterSelectedRowCount: true,
                 hideFooter: true,
                 slots: {
-                    noRowsOverlay: () => h(Center, {}, noRows || "No entries"),
+                    noRowsOverlay: () => h(Center, {}, noRows || t("No entries")),
                 },
                 slotProps: {
                     pagination: {
@@ -95,15 +98,16 @@ export function ArrayField<T extends object>({
                     {
                         field: '',
                         type: 'actions',
-                        width: 90,
+                        width: 110,
                         headerAlign: 'center' as GridAlignment,
                         renderHeader(){
-                            const title = "Add"
+                            const title = t("Add")
                             return h(Fragment, {},
-                                h(IconBtn, {
+                                h(Btn, {
                                     icon: Add,
                                     title,
                                     size: 'small',
+                                    labelIf: true,
                                     async onClick(ev) {
                                         const res = await formDialog<T>({
                                             form: getFormProp({}),
@@ -117,10 +121,10 @@ export function ArrayField<T extends object>({
                                         else newValue.push(res)
                                         set(newValue, ev)
                                     }
-                                }),
+                                }, title),
                                 undo !== undefined && h(IconBtn, {
                                     icon: Undo,
-                                    title: "Undo",
+                                    title: t('Undo'),
                                     size: 'small',
                                     onClick: ev => set(undo!, ev)
                                 }),
@@ -128,7 +132,7 @@ export function ArrayField<T extends object>({
                         },
                         getActions({ row }) {
                             const { $idx=row.id } = row
-                            const title = "Modify"
+                            const title = t("Modify")
                             return [
                                 h(GridActionsCellItem as any, {
                                     key: 'edit',
@@ -155,7 +159,7 @@ export function ArrayField<T extends object>({
                                 h(GridActionsCellItem as any, {
                                     key: 'delete',
                                     icon: h(Delete),
-                                    label: "Delete",
+                                    label: t("Delete"),
                                     showInMenu: reorder,
                                     onClick(ev: any) {
                                         ev.stopPropagation()
@@ -165,7 +169,7 @@ export function ArrayField<T extends object>({
                                 reorder && $idx && h(GridActionsCellItem as any, {
                                     key: 'up',
                                     icon: h(ArrowUpward),
-                                    label: "Move up",
+                                    label: t("Move up"),
                                     showInMenu: true,
                                     onClick(ev: any) {
                                         ev.stopPropagation()
@@ -175,7 +179,7 @@ export function ArrayField<T extends object>({
                                 reorder && $idx < rows.length - 1 && h(GridActionsCellItem as any, {
                                     key: 'down',
                                     icon: h(ArrowDownward),
-                                    label: "Move down",
+                                    label: t("Move down"),
                                     showInMenu: true,
                                     onClick(ev: any) {
                                         ev.stopPropagation()

@@ -26,6 +26,7 @@ export default function MenuButton({ items, ...rest }: BtnProps & { items: any[]
             anchorEl,
             open,
             onClose,
+            disablePortal: true,
             slotProps: { list: { 'aria-labelledby': id } },
             children: items.map((it,idx) =>
                 h(MenuItem, {

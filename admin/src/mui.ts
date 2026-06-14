@@ -23,6 +23,7 @@ import _ from 'lodash'
 import { ALL as COUNTRIES } from './countries'
 import { apiCall } from '@hfs/shared/api'
 import { StringFieldProps } from '@hfs/mui-grid-form/StringField'
+import { t } from './adminI18n'
 
 export function spinner() {
     return h(CircularProgress)
@@ -63,7 +64,7 @@ export function IconProgress({ icon, progress, offset, title, sx }: IconProgress
             size: 32,
             sx: { position: 'absolute' },
         }),
-        hTooltip(title ?? (_.isNumber(progress) ? formatPerc(progress) : "Size unknown"), '',
+        hTooltip(title ?? (_.isNumber(progress) ? formatPerc(progress) : t("Size unknown")), '',
             h(CircularProgress, {
                 color: 'success',
                 value: (offset || 1e-7) * 100,
@@ -101,11 +102,11 @@ export function wikiLink(uri: string, content: ReactNode) {
 }
 
 export function WildcardsSupported() {
-    return wikiLink('Wildcards', "Wildcards supported")
+    return wikiLink('Wildcards', t("Wildcards supported"))
 }
 
 export function reloadBtn(onClick: any, props?: any) {
-    return h(IconBtn, { icon: Refresh, title: "Reload", onClick, ...props })
+    return h(IconBtn, { icon: Refresh, title: t("Reload"), onClick, ...props })
 }
 
 export function useCtrlShortcutButton(keys: readonly string[]) {
@@ -176,10 +177,11 @@ export const Btn = forwardRef(({ icon, title, onClick, disabled, progress, link,
     const common = _.merge(propsForModifiedValues(modified), {
         ref: ref.pass,
         disabled,
+        type: 'button',
         'aria-hidden': disabled,
         async onClick(...args: any[]) {
             if (loadingState) return
-            if (confirm && !await confirmDialog(confirm === true ? "Are you sure?" : confirm)) return
+            if (confirm && !await confirmDialog(confirm === true ? t("Are you sure?") : confirm)) return
             const ret = onClick?.apply(this, args as any)
             if (ret instanceof Promise) {
                 setLoadingState(true)
@@ -231,7 +233,7 @@ export function execDoneMessage(msg: boolean | string | undefined, el?: HTMLElem
     if (el)
         restartAnimation(el, 'success .5s')
     if (msg)
-        toast(msg === true ? "Operation completed" : msg, 'success')
+        toast(msg === true ? t("Operation completed") : msg, 'success')
 }
 
 export function iconTooltip(icon: SvgIconComponent, tooltip: ReactNode, sx?: SxProps, props?: SvgIconProps) {
@@ -273,7 +275,7 @@ export function LinkBtn({ ...rest }: LinkProps) {
 }
 
 export function usePauseButton(name='', def: ToggleButtonDefault=true, props?: Partial<IconBtnProps>) {
-    const [going, btn] = useToggleButton(`Pause ${name}`, `Resume ${name}`, v => ({
+    const [going, btn] = useToggleButton(t('Pause {name}', { name }), t('Resume {name}', { name }), v => ({
         icon: v ? PauseCircle : PlayCircle,
         sx: { rotate: v ? '180deg' : '0deg' },
         ...props,
@@ -305,7 +307,7 @@ export function useToggleButton(onTitle: string, offTitle: undefined | string, i
             props.onClick?.(ev)
             toggle()
         },
-    }), [state]) // memoize or tooltip flickers on mouse-over
+    }), [state, onTitle, offTitle]) // memoize or tooltip flickers on mouse-over
     return [state, el, setState] as const
 }
 
@@ -313,16 +315,16 @@ export function NetmaskField({ setApi, helperText, ...props }: StringFieldProps)
     const warned = useRef(false)
     setApi?.({
         getError() {
-            return props.value && apiCall('validate_net_mask', { mask: props.value }).then(x => !x.result && "Invalid mask")
+            return props.value && apiCall('validate_net_mask', { mask: props.value }).then(x => !x.result && t("Invalid mask"))
         }
     })
     return h(StringField, {
-        helperText: h('span', {}, helperText, helperText && ' – ', wikiLink('Wildcards#network-masks', "Wildcards supported")),
+        helperText: h('span', {}, helperText, helperText && ' – ', wikiLink('Wildcards#network-masks', t("Wildcards supported"))),
         ...props,
         onTyping(v) {
             if (!warned.current && v?.includes('127.0.0.1') && !v.includes('::1')) {
                 warned.current = true
-                alertDialog(`Hostname "localhost" is normally translated as ::1 instead of 127.0.0.1`, 'warning')
+                alertDialog(t('Hostname "localhost" is normally translated as ::1 instead of 127.0.0.1'), 'warning')
             }
             return props.onTyping?.(v) ?? v
         },

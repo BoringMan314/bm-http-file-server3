@@ -7,6 +7,7 @@ import { pid, ppid } from 'node:process'
 import { promisify } from 'util'
 import { IS_WINDOWS } from './const'
 import { statfs } from 'node:fs/promises'
+import { ct } from './serverI18n'
 
 const DF_TIMEOUT = 2000
 
@@ -82,10 +83,10 @@ async function getWindowsServicePids() {
 export const runningAsWindowsService = IS_WINDOWS && getWindowsServicePids().then(x => {
     const ret = x[pid] || x[ppid]
     if (ret)
-        console.log("Running as service", ret)
+        console.log(ct('runningAsService'), ret)
     return ret
 }, e => {
-    console.log("Couldn't determine if we are running as a service")
+    console.log(ct('couldNotDetermineService'))
     console.debug(e)
 })
 

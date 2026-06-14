@@ -22,8 +22,10 @@ import { ConfigForm } from './ConfigForm'
 import { Release } from '../../src/update'
 import { adminApis } from '../../src/adminApis'
 import { RandomPlugin } from './RandomPlugin'
+import { t, useAdminLanguage } from './adminI18n'
 
 export default function HomePage() {
+    useAdminLanguage()
     const SOLUTION_SEP = " — "
     const { username } = useSnapState()
     const { data: status, reload: reloadStatus, element: statusEl } = useApiEx<typeof adminApis.get_status>('get_status')
@@ -41,26 +43,28 @@ export default function HomePage() {
     const srv = goSecure ? https : (http?.listening && http)
     const href = srv && `http${goSecure}://`+window.location.hostname + (srv.port === (goSecure ? 443 : 80) ? '' : ':'+srv.port)
     const serverErrors = _.mapValues({ http, https }, v =>
-        v.busy ? [`port ${v.configuredPort} already used by ${v.busy}${SOLUTION_SEP}choose a `, cfgLink('different port'), ` or stop ${v.busy}`]
-            : v.error )
+        v.busy ? [
+            t('port {port} busy: {process}', { port: v.configuredPort, process: v.busy }),
+            SOLUTION_SEP, t('choose a '), cfgLink(t('different port')), t(' or '), t('stop {process}', { process: v.busy }),
+        ] : v.error )
     const errors = serverErrors && onlyTruthy(Object.entries(serverErrors).map(([k,v]) =>
-        v && [md(`Protocol <u>${k}</u>: `), v,
+        v && [md(t('Protocol <u>{protocol}</u>: ', { protocol: k })), v,
             (isCertError(v) || isKeyError(v)) && [
                 SOLUTION_SEP, h(LinkBtn, {
                     onClick() { suggestMakingCert().then(() => wait(999)).then(cfg.reload).then(reloadStatus) } },
-                    "make one"
-                ), " or ", SOLUTION_SEP, cfgLink("provide adequate files")
+                    t('make one')
+                ), t(' or '), SOLUTION_SEP, cfgLink(t('provide adequate files'))
             ]]))
     const rightClickToInstallFromUrl = {
         async onContextMenu(ev: any) {
             ev.preventDefault()
             if (!status.updatePossible)
-                return alertDialog("Automatic update is not supported for your installation", 'warning')
-            const res = await promptDialog("Enter a link to the zip to install")
+                return alertDialog(t("Automatic update is not supported for your installation"), 'warning')
+            const res = await promptDialog(t("Enter a link to the zip to install"))
             if (res)
                 await update(res)
         },
-        title: status.updatePossible && "Right-click if you want to install a zip",
+        title: status.updatePossible && t("Right-click if you want to install a zip"),
     }
     const vfs = cfg.data?.vfs
     return h(Box, {},
@@ -68,52 +72,52 @@ export default function HomePage() {
         h(Box, { sx: { display:'flex', gap: 2, flexDirection:'column', alignItems: 'flex-start', height: '100%' } },
             dontBotherWithKeys(status.alerts?.map(x => entry('warning', md(x, { html: false }))) || []),
             errors.length ? dontBotherWithKeys(errors.map(msg => entry('error', dontBotherWithKeys(msg))))
-                : entry('success', "Server is working"),
-            vfs && !vfs.children?.length && !vfs.source ? entry('warning', "You have no shared files", SOLUTION_SEP, fsLink("add some")) : null,
-            account?.adminActualAccess ? entry('', "Welcome, "+username)
-                : entry('', md("You're accessing the Admin-panel without an account because you are on localhost"),
-                    ...status.anyAccountCanLoginAdmin ? [] : [SOLUTION_SEP, "to access from another computer, you must ", h(InLink, { to:'/accounts' }, md("create an account with *admin* permission"))] ),
-            !href && entry('warning', "Frontend unreachable: ",
-                _.map(serverErrors, (v,k) => k + " " + (v ? "is in error" : "is off")).join(', '),
-                !errors.length && [ SOLUTION_SEP, cfgLink("switch http or https on") ]
+                : entry('success', t('Server is working')),
+            vfs && !vfs.children?.length && !vfs.source ? entry('warning', t('You have no shared files'), SOLUTION_SEP, fsLink(t('add some'))) : null,
+            account?.adminActualAccess ? entry('', t('Welcome, {username}', { username }))
+                : entry('', md(t("You're accessing the Admin-panel without an account because you are on localhost")),
+                    ...status.anyAccountCanLoginAdmin ? [] : [SOLUTION_SEP, t("to access from another computer, you must "), h(InLink, { to:'/accounts' }, md(t("create an account with *admin* permission")))] ),
+            !href && entry('warning', t('Frontend unreachable') + ': ',
+                _.map(serverErrors, (v,k) => t(k.toUpperCase()) + ' ' + (v ? t('is in error') : t('is off'))).join(', '),
+                !errors.length && [ SOLUTION_SEP, cfgLink(t('switch http or https on')) ]
             ),
             with_(status.acmeRenewError, x => x && entry('warning', x)),
             with_(status.blacklistedInstalledPlugins, x => x?.length > 0
-                && entry('warning', "Found blacklisted plugin(s): ", x.join(', ')) ),
+                && entry('warning', t('Found blacklisted plugin(s): {plugins}', { plugins: x.join(', ') })) ),
             with_(plugins?.filter(x => x.error || x.badApi).length, x => x > 0
-                && entry('warning', `${x} plugin(s) failing`, SOLUTION_SEP, h(InLink, { to:'/plugins' }, "check now"))),
+                && entry('warning', t('{count} plugin(s) failing', { count: x }), SOLUTION_SEP, h(InLink, { to:'/plugins' }, t('check now')))),
             !cfg.data?.split_uploads && (Date.now() - Number(status.cloudflareDetected || 0)) < DAY
-                && entry('', wikiLink('Reverse-proxy#cloudflare', "Cloudflare detected, read our guide")),
+                && entry('', wikiLink('Reverse-proxy#cloudflare', t('Cloudflare detected, read our guide'))),
             with_(proxyWarning(cfg.data, status), x => x && entry('warning', x,
-                    SOLUTION_SEP, cfgLink("set the number of proxies"),
-                    SOLUTION_SEP, "unless you are sure and you can ", h(Btn, {
+                    SOLUTION_SEP, cfgLink(t("set the number of proxies")),
+                    SOLUTION_SEP, t("unless you are sure and you can "), h(Btn, {
                         variant: 'outlined',
                         size: 'small',
                         sx: { lineHeight: 'unset' }, // fit in the line, avoiding bad layout
-                        confirm: "Go on only if you know what you are doing",
+                        confirm: t("Go on only if you know what you are doing"),
                         onClick: () => apiCall('set_config', { values: { ignore_proxies: true } }).then(cfg.reload)
-                    }, "ignore this warning"),
-                    SOLUTION_SEP, wikiLink('Proxy-warning', "Explanation")
+                    }, t('ignore this warning')),
+                    SOLUTION_SEP, wikiLink('Proxy-warning', t('Explanation'))
             )),
-            (cfg.data?.proxies > 0 || status?.proxyDetected) && entry('', wikiLink('Reverse-proxy', "Read our guide on proxies")),
-            status.frpDetected && entry('warning', `FRP is detected. It should not be used with "type = tcp" with HFS. Possible solutions are`,
+            (cfg.data?.proxies > 0 || status?.proxyDetected) && entry('', wikiLink('Reverse-proxy', t('Read our guide on proxies'))),
+            status.frpDetected && entry('warning', t('FRP is detected. It should not be used with "type = tcp" with HFS. Possible solutions are'),
                 h('ol',{},
-                    h('li',{}, `configure FRP with type=http (best solution)`),
-                    h('li',{}, md(`configure FRP to connect to HFS <u>not</u> with localhost (safe, but you won't see users' IPs)`)),
-                    h('li',{}, `disable "admin access for localhost" in HFS (safe, but you won't see users' IPs)`),
+                    h('li',{}, t('configure FRP with type=http (best solution)')),
+                    h('li',{}, md(t("configure FRP to connect to HFS <u>not</u> with localhost (safe, but you won't see users' IPs)"))),
+                    h('li',{}, t('disable "admin access for localhost" in HFS (safe, but you won\'t see users\' IPs)')),
                 )),
-            entry('', md("This is the *Admin-panel*, where you manage your server. Access your files on the [Front-end](../..).")),
-            entry('', wikiLink('', "See the documentation"), " and ", h(Link, { target: 'support', href: REPO_URL + 'discussions' }, "get support")),
+            entry('', adminPanelIntro()),
+            entry('', wikiLink('', t('See the documentation')), t(' and '), h(Link, { target: 'support', href: REPO_URL + 'discussions' }, t('get support'))),
             !updates && with_(status.autoCheckUpdateResult, x =>
-                x?.isNewer && h(Update, { info: x, fromAuto: true, bodyCollapsed: true, title: "An update has been found" }) ),
-            pluginUpdates.length > 0 && entry('success', "Updates available for plugin(s): " + pluginUpdates.map(p => p.id).join(', ')),
+                x?.isNewer && h(Update, { info: x, fromAuto: true, bodyCollapsed: true, title: t('An update has been found') }) ),
+            pluginUpdates.length > 0 && entry('success', t('Updates available for plugin(s): {plugins}', { plugins: pluginUpdates.map(p => p.id).join(', ') })),
             h(ConfigForm, {
                 // MUI 7 folded Grid2 into Grid, so the generated class name changed with the import path.
                 gridProps: { sx: { mt: 1, display: 'flex', columnGap: 1, alignitems: 'center', '&>div.MuiGrid-root': { width: 'auto', px: .5, py: 0 }, '.MuiCheckbox-root': { pl: '2px' } } },
                 saveOnChange: true,
                 form: {
                     fields: [
-                        status.updatePossible === 'local' ? h(Btn, { icon: UpdateIcon, onClick: () => update() }, "Update from local file")
+                        status.updatePossible === 'local' ? h(Btn, { icon: UpdateIcon, onClick: () => update() }, t('Update from local file'))
                             : !updates && h(Btn, {
                                 icon: UpdateIcon,
                                 onClick() {
@@ -122,23 +126,23 @@ export default function HomePage() {
                                     return apiCall<typeof adminApis.check_update>('check_update').then(x => setUpdates(x.options), alertDialog)
                                 },
                                 ...rightClickToInstallFromUrl
-                            }, "Check for updates"),
-                        { k: 'auto_check_update', comp: CheckboxField, label: "Auto check updates daily" },
-                        { k: 'update_to_beta', comp: CheckboxField, label: "Include beta versions" },
+                            }, t('Check for updates')),
+                        { k: 'auto_check_update', comp: CheckboxField, label: t('Auto check updates daily') },
+                        { k: 'update_to_beta', comp: CheckboxField, label: t('Include beta versions') },
                     ]
                 }
             }),
             updates && with_(_.find(updates, 'isNewer'), newer =>
-                !updates.length || !status.updatePossible && !newer ? entry('', "No update available")
-                    : newer && !status.updatePossible ? entry('success', `Version ${newer.name} available`)
+                !updates.length || !status.updatePossible && !newer ? entry('', t('No update available'))
+                    : newer && !status.updatePossible ? entry('success', t('Version {version} available', { version: newer.name }))
                         : h(Flex, { vert: true },
                             updates.map((x: any) => h(Update, { info: x, key: x.name })) ),
             ),
             h(Flex, { flexWrap: 'wrap' },
                 !otherVersions && status.updatePossible && status.previousVersionAvailable
-                    && h(Btn, { icon: Restore, onClick: () => update(PREVIOUS_TAG) }, "Reinstall previous version"),
-                !status.updatePossible ? entry('', h(Link, { href: REPO_URL + 'releases/', target: 'repo' }, "All releases"))
-                    : !otherVersions ? h(Btn, { icon: Colorize, onClick: getOtherVersions, ...rightClickToInstallFromUrl }, "Get another version")
+                    && h(Btn, { icon: Restore, onClick: () => update(PREVIOUS_TAG) }, t('Reinstall previous version')),
+                !status.updatePossible ? entry('', h(Link, { href: REPO_URL + 'releases/', target: 'repo' }, t("All releases")))
+                    : !otherVersions ? h(Btn, { icon: Colorize, onClick: getOtherVersions, ...rightClickToInstallFromUrl }, t('Get another version'))
                         : h(Flex, { vert: true }, otherVersions.map((x: any) => h(Update, {
                             info: x,
                             key: x.name,
@@ -147,7 +151,7 @@ export default function HomePage() {
             ),
             h(SwitchThemeBtn),
             Date.now() - Number(new Date(status.started)) > HOUR && h(Link, {
-                title: "Donate",
+                title: t("Donate"),
                 target: 'donate',
                 style: { textDecoration: 'none', position: 'fixed', bottom: 0, right: 4, fontSize: 'large' },
                 href: 'https://www.paypal.com/donate/?hosted_button_id=HC8MB4GRVU5T2'
@@ -171,10 +175,10 @@ function Update({ info, title, bodyCollapsed, fromAuto }: { title?: ReactNode, i
                     icon: UpdateIcon,
                     ...!info.isNewer && info.prerelease && { color: 'warning', variant: 'outlined' },
                     onClick: () => update(fromAuto ? undefined : info.tag_name) // in case of autoCheck, don't specify the tag_name, as it may have been retired in the meantime (in favor of a newer one)
-                }, prefix("Install ", info.name, info.isNewer ? '' : " (older)")),
+                }, info.isNewer ? t('Install {version}', { version: info.name }) : t('Install {version} (older)', { version: info.name })),
                 h(Link, { href: REPO_URL + 'releases/tag/' + info.tag_name, target: 'repo' }, h(OpenInNew)),
             ),
-            collapsed ? h(LinkBtn, { sx: { display: 'block', mt: 1 }, onClick(){ setCollapsed(false) } }, "See details")
+            collapsed ? h(LinkBtn, { sx: { display: 'block', mt: 1 }, onClick(){ setCollapsed(false) } }, t('See details'))
                 : h(Box, { sx: { mt: 1 } }, renderChangelog(info.body))
         )),
     )
@@ -190,24 +194,24 @@ function renderChangelog(s: string) {
 }
 
 async function update(tag?: string) {
-    if (!await confirmDialog("Installation may take less than a minute, depending on the speed of your server")) return
-    toast('Downloading')
+    if (!await confirmDialog(t('Installation may take less than a minute, depending on the speed of your server'))) return
+    toast(t('Downloading'))
     const err = await apiCall('update', { tag }, { timeout: 600 /*download can be lengthy*/ })
         .then(() => 0, e => e)
     if (err)
         return alertDialog(err)
-    toast("Restarting")
+    toast(t('Restarting'))
     const restarting = Date.now()
     let warning: undefined | ReturnType<typeof alertDialog>
     while (await apiCall('NONE').then(() => 0, e => !e.code)) { // while we get no response
         if (!warning && Date.now() - restarting > 15_000)
-            warning = alertDialog("This is taking too long, please check your server", 'warning')
+            warning = alertDialog(t('This is taking too long, please check your server'), 'warning')
         await wait(500)
     }
     warning?.close()
     // the server is back on, SSE is restored and login dialog may appear, unwanted because we are just waiting to reload
     subscribeKey(state, 'loginRequired', () => state.loginRequired = false)
-    await alertDialog("Procedure complete", 'success')
+    await alertDialog(t('Procedure complete'), 'success')
     window.location.reload() // show new gui
 }
 
@@ -225,16 +229,27 @@ function entry(color: Color, ...content: ReactNode[]) {
     )
 }
 
-function fsLink(text=`File System page`) {
+function adminPanelIntro() {
+    const admin = t('Admin-panel')
+    const front = t('Front-end')
+    const text = t("This is the Admin-panel, where you manage your server. Access your files on the Front-end.")
+    const esc = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    return replaceStringToReact(text, new RegExp(`${esc(admin)}|${esc(front)}`, 'g'), m =>
+        m[0] === admin ? h('strong', {}, admin) : h(Link, { href: '../..' }, front)
+    )
+}
+
+function fsLink(text = t('File System page')) {
     return h(InLink, { to:'/fs' }, text)
 }
 
-function cfgLink(text=`Options page`) {
+function cfgLink(text = t('Options page')) {
     return h(InLink, { to: '/options' }, text)
 }
 
 export function proxyWarning(cfg: any, status: any) {
-    return status && cfg && !cfg.ignore_proxies && (!cfg.proxies && status.proxyDetected ? "A proxy was detected but none is configured"
-        : cfg.proxies && !status.proxyDetected && (Date.now() - +new Date(status.started) > DAY) ? `Proxy count is set to ${cfg.proxies} but none was detected recently. Consider setting it to zero`
+    return status && cfg && !cfg.ignore_proxies && (!cfg.proxies && status.proxyDetected ? t("A proxy was detected but none is configured")
+        : cfg.proxies && !status.proxyDetected && (Date.now() - +new Date(status.started) > DAY)
+            ? t('Proxy count is set to {count} but none was detected recently. Consider setting it to zero', { count: cfg.proxies })
         : '')
 }

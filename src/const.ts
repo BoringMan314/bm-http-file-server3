@@ -7,6 +7,7 @@ import _ from 'lodash'
 import { basename, dirname, join } from 'path'
 import { formatTimestamp } from './cross'
 import { argv } from './argv'
+import { ct } from './serverI18n'
 export * from './cross-const'
 
 export const API_VERSION = 13.1
@@ -17,7 +18,7 @@ export const COMPATIBLE_API_VERSION = 1 // the day we break with the past, we'll
 export const ARGS_FILE = join(homedir(), 'hfs-args')
 try {
     const s = fs.readFileSync(ARGS_FILE, 'utf-8')
-    console.log('Additional arguments', s)
+    console.log(ct('additionalArguments'), s)
     _.defaults(argv, minimist(JSON.parse(s)))
     fs.unlinkSync(ARGS_FILE)
 }
@@ -53,9 +54,9 @@ if (DEV) {
 }
 console.log(`HFS ~ HTTP File Server`)
 console.log(`© Massimo Melina <a@rejetto.com> - License https://www.gnu.org/licenses/gpl-3.0.txt`)
-console.log('Started', formatTimestamp(HFS_STARTED), DEV)
-console.log('Version', VERSION||'-')
-console.log('Build', BUILD_TIMESTAMP||'-')
+console.log(ct('started'), formatTimestamp(HFS_STARTED), DEV)
+console.log(ct('version'), VERSION||'-')
+console.log(ct('build'), BUILD_TIMESTAMP||'-')
 // still considering whether to use ".hfs" with Windows users, who may be less accustomed to it
 const dir = argv.cwd || useHomeDir() && join(homedir(), '.hfs')
 if (dir) {
@@ -68,16 +69,16 @@ if (dir) {
 }
 else if (process.cwd().startsWith(process.env.windir + '\\')) // this happens if you run hfs from task scheduler
     process.chdir(APP_PATH)
-console.log('Working directory (cwd)', process.cwd())
+console.log(ct('workingDirectory'), process.cwd())
 if (APP_PATH !== process.cwd())
-    console.log('App', APP_PATH)
-console.log('Node', process.version)
+    console.log(ct('app'), APP_PATH)
+console.log(ct('node'), process.version)
 const bun = (globalThis as any).Bun
-if (bun) console.log('Bun', bun.version)
-console.log('Platform', process.platform, process.arch, IS_BINARY ? 'binary' : basename(process.execPath))
-console.log('Pid', process.pid)
+if (bun) console.log(ct('bun'), bun.version)
+console.log(ct('platform'), process.platform, process.arch, IS_BINARY ? 'binary' : basename(process.execPath))
+console.log(ct('pid'), process.pid)
 setImmediate(() => // after commands.ts has handled console.debug
-    console.debug("Args", argv))
+    console.debug(ct('args'), argv))
 
 function useHomeDir() {
     if (!IS_WINDOWS || !IS_BINARY) return true

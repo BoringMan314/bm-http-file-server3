@@ -23,6 +23,7 @@ import { argv } from './argv'
 import { expiringCache } from './expiringCache'
 import { configReady } from './config'
 import { checkForUpdates } from './update'
+import { ct } from './serverI18n'
 
 const DIST_ROOT = 'dist'
 
@@ -57,7 +58,7 @@ export async function downloadPlugin(repo: Repo, { branch='', overwrite=false }=
     const msg = await isPluginBlacklisted(repo) // check before downloading, in case other filters were passed somehow
     if (msg)
         throw new ApiError(HTTP_FORBIDDEN, "blacklisted: " + msg)
-    console.log('Downloading plugin', repo)
+    console.log(ct('downloadingPlugin'), repo)
     downloadProgress(repo, true)
     try {
         const pl = findPluginByRepo(repo)
@@ -311,14 +312,14 @@ export const getProjectInfo = debounceAsync(async () => {
         if (newAlerts.length)
             void checkForUpdates() // with new alerts, is best to have fresh updates info
         for (const a of newAlerts) {
-            console.log("ALERT:", a)
+            console.log(ct('alertPrefix'), a)
             events.emit('alert', { message: a })
         }
     }
     const black = onlyTruthy(Object.keys(obj.repo_blacklist || {}).map(findPluginByRepo))
     blacklistedInstalledPlugins = onlyTruthy(black.map(x => _.isString(x.repo) && x.repo))
     if (black.length) {
-        console.log("Blacklisted plugins found:", black.join(', '))
+        console.log(ct('blacklistedPluginsFound', { list: black.join(', ') }))
         for (const p of black)
             enablePlugin(p.id, false)
     }

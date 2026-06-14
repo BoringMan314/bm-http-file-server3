@@ -16,9 +16,11 @@ import _ from 'lodash'
 import { PLUGIN_ERRORS } from './PluginsPage'
 import { Btn, hTooltip, IconBtn, iconTooltip, usePauseButton } from './mui'
 import { showPluginOptions, evalWrapper } from './pluginOptions'
+import { t, useAdminLanguage } from './adminI18n'
 
 // updates=true will show the "check updates" version of the page
-export default function InstalledPlugins({ updates }: { updates?: true }) {
+export default function InstalledPlugins({updates }: { updates?: true }) {
+    useAdminLanguage()
     const { list, error, setList, initializing } = useApiList<any>(updates ? 'get_plugin_updates' : 'get_plugins', {}, {
         map(x: any) { x.config &&= tryJson(x.config, s => evalWrapper('()=>('+s+')')()) }
     })
@@ -38,8 +40,8 @@ export default function InstalledPlugins({ updates }: { updates?: true }) {
     })
     const theme = useTheme()
     return h(DataTable, {
-        error: isPrimitive(error) ? xlate(error, PLUGIN_ERRORS)
-            : _.map(error, (v, k) => `Error ${k} for: ${v.join(', ')}`).join('; '), // complex error for updates
+        error: isPrimitive(error) ? t(xlate(error, PLUGIN_ERRORS))
+            : _.map(error, (v, k) => t('Error {code} for: {list}', { code: k, list: v.join(', ') })).join('; '), // complex error for updates
         rows: list.length ? list : [], // workaround for DataGrid's bug causing 'no rows' message to be not displayed after 'loading' was also used
         fillFlex: true,
         initializing,
@@ -47,11 +49,11 @@ export default function InstalledPlugins({ updates }: { updates?: true }) {
         quickFilter: !updates,
         actionsHeader: !updates && pauseButton,
         getRowHeight: updates && (({ model }) => model.changelog ? 'auto' as const : 50),
-        noRows: updates && `No updates available. Only plugins available on "search online" are checked.`,
+        noRows: updates && t('No updates available. Only plugins available on "search online" are checked.'),
         columns: [
             {
                 field: 'id',
-                headerName: "name",
+                headerName: t("name"),
                 flex: .3,
                 minWidth: 150,
                 renderCell: renderName,
@@ -60,14 +62,15 @@ export default function InstalledPlugins({ updates }: { updates?: true }) {
             },
             {
                 field: 'version',
+                headerName: t("version"),
                 width: 70,
                 hideUnder: 'sm',
                 cellInnerProps: { className: HIDE_IN_TESTS },
                 mergeRender: { installedVersion: { sx: { fontSize: 'x-small' } } }
             },
-            themeField,
+            themeField(),
             {
-                ...descriptionField,
+                ...descriptionField(),
                 flex: 1,
                 hideUnder: 'sm',
             },
@@ -75,11 +78,11 @@ export default function InstalledPlugins({ updates }: { updates?: true }) {
                 field: 'installedVersion',
                 hideUnder: true,
                 dialogHidden: true,
-                renderCell: ({ value }) => value && `Yours ${value}`
+                renderCell: ({ value }) => value && t("Yours {version}", { version: value })
             },
             {
                 field: 'changelog',
-                headerName: "Change log",
+                headerName: t("Change log"),
                 flex: 2,
                 hideUnder: !updates || 'sm',
                 sx: { flexDirection: 'column', alignItems: 'flex-start' },
@@ -100,40 +103,40 @@ export default function InstalledPlugins({ updates }: { updates?: true }) {
         actions: ({ row, id }) => updates ? [
             h(IconBtn, {
                 icon: Upgrade,
-                title: row.downloading ? "Downloading" : row.updated ? "Already updated" : "Update",
+                title: row.downloading ? t("Downloading") : row.updated ? t("Already updated") : t("Update"),
                 disabled: row.updated,
                 progress: row.downloading,
                 size,
                 async onClick() {
                     await apiCall('update_plugin', { id }, { timeout: false }).catch(e => {
                         throw e.code !== HTTP_FAILED_DEPENDENCY ? e
-                            : Error("Failed dependencies: " + e.cause?.map((x: any) => prefix(`plugin "`, x.id || x.repo, `" `) + x.error).join('; '))
+                            : Error(t("Failed dependencies: {details}", { details: e.cause?.map((x: any) => prefix(`plugin "`, x.id || x.repo, `" `) + x.error).join('; ') }))
                     })
-                    toast("Plugin updated")
+                    toast(t("Plugin updated"))
                 }
             })
         ] : [
             h(IconBtn, row.started ? {
                 icon: StopCircle,
-                title: h(Box, { 'aria-hidden': true }, `Stop ${id}`, h('br'), `Started ` + new Date(row.started as string).toLocaleString()),
-                'aria-label': `Stop ${id}`,
+                title: h(Box, { 'aria-hidden': true }, t("Stop {id}", { id }), h('br'), t("Started {time}", { time: new Date(row.started as string).toLocaleString() })),
+                'aria-label': t("Stop {id}", { id }),
                 size,
                 color: 'success',
                 doneAnimation: true,
                 onClick: () => apiCall('stop_plugin', { id }),
             } : {
                 icon: PlayCircle,
-                title: `Start ${id}`,
-                disabled: pause && "All plugins are paused – Click the Resume button below",
+                title: t("Start {id}", { id }),
+                disabled: pause && t("All plugins are paused – Click the Resume button below"),
                 size,
                 onClick: () => startPlugin(id),
             }),
             h(IconBtn, {
                 icon: row.config || !row.started || !row.log ? Settings : ListAlt,
-                title: row.config || !row.log ? "Options" : "Log",
+                title: row.config || !row.log ? t("Options") : t("Log"),
                 size,
-                disabled: !row.started && "Start plugin to access options"
-                    || !row.config && !row.log && "No options and no log for this plugin",
+                disabled: !row.started && t("Start plugin to access options")
+                    || !row.config && !row.log && t("No options and no log for this plugin"),
                 onClick() {
                     const cd = row.configDialog
                     // support css values for maxWidth without having to wrap in sx, as in DialogProps it only supports breakpoints
@@ -145,17 +148,17 @@ export default function InstalledPlugins({ updates }: { updates?: true }) {
             }),
             h(IconBtn, {
                 icon: Delete,
-                title: "Uninstall",
+                title: t("Uninstall"),
                 size,
                 async onClick() {
-                    const res = await confirmDialog(`${id}: delete configuration too?`, {
-                        trueText: "Yes",
-                        falseText: "No",
-                        after: ({ onClick }) => h(Btn, { variant: 'outlined', onClick(){ onClick(undefined) } }, "Abort")
+                    const res = await confirmDialog(t("{id}: delete configuration too?", { id }), {
+                        trueText: t("Yes"),
+                        falseText: t("No"),
+                        after: ({ onClick }) => h(Btn, { variant: 'outlined', onClick(){ onClick(undefined) } }, t("Abort"))
                     })
                     if (res === undefined) return
                     await apiCall('uninstall_plugin', { id, deleteConfig: res })
-                    toast("Plugin uninstalled")
+                    toast(t("Plugin uninstalled"))
                 }
             }),
         ]
@@ -192,27 +195,32 @@ export function renderName({ row, value }: any) {
 export async function startPlugin(id: string) {
     try {
         await apiCall('start_plugin', { id })
-        toast("Plugin started", h(PlayCircle, { color: 'success' }))
+        toast(t("Plugin started"), h(PlayCircle, { color: 'success' }))
         return true
     }
     catch(e: any) {
-        alertDialog(`Plugin ${id} didn't start, with error: ${String(e?.message || e)}`, 'error')
+        alertDialog(t("Plugin {id} didn't start, with error: {error}", { id, error: String(e?.message || e) }), 'error')
     }
 }
 
-export const descriptionField: DataTableColumn = {
-    field: 'description',
-    mergeRender: { isTheme: {} } ,
-    mergeRenderSx: { float: 'left' },
+export function descriptionField(): DataTableColumn {
+    return {
+        field: 'description',
+        headerName: t("description"),
+        mergeRender: { isTheme: {} } ,
+        mergeRenderSx: { float: 'left' },
+    }
 }
 
-export const themeField: DataTableColumn = {
-    field: 'isTheme',
-    headerName: "is theme",
-    hideUnder: true,
-    dialogHidden: true,
-    type: 'boolean',
-    renderCell({ value }) {
-        return value && iconTooltip(ThemeIcon, _.isString(value) ? `${value} theme` : "theme", { fontSize: '1.2rem', mr: '.3em' })
+export function themeField(): DataTableColumn {
+    return {
+        field: 'isTheme',
+        headerName: t("is theme"),
+        hideUnder: true,
+        dialogHidden: true,
+        type: 'boolean',
+        renderCell({ value }) {
+            return value && iconTooltip(ThemeIcon, _.isString(value) ? t("{theme} theme", { theme: value }) : t("theme"), { fontSize: '1.2rem', mr: '.3em' })
+        }
     }
 }

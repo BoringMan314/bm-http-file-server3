@@ -5,6 +5,7 @@ import { Tab, Tabs } from '@mui/material'
 import InstalledPlugins from './InstalledPlugins'
 import OnlinePlugins from './OnlinePlugins'
 import { useRoutedTab } from './routing'
+import { t, useAdminLanguage } from './adminI18n'
 
 const TABS = [
     { label: "Installed", path: 'installed', Pane: InstalledPlugins },
@@ -12,9 +13,10 @@ const TABS = [
     { label: "Check updates", path: 'updates', Pane: () => h(InstalledPlugins, { updates: true }) },
 ]
 const TAB_PATHS = TABS.map(x => x.path)
-export const PLUGIN_ERRORS = { ENOTFOUND: "Cannot reach github.com", ECONNREFUSED: "Cannot reach github.com" }
+export const PLUGIN_ERRORS = { ENOTFOUND: 'Cannot reach github.com', ECONNREFUSED: 'Cannot reach github.com' }
 
 export default function PluginsPage() {
+    useAdminLanguage()
     const [tab, setTab] = useRoutedTab('plugins', TAB_PATHS)
     const { Pane } = TABS[tab]
     return h(Fragment, {},
@@ -24,7 +26,7 @@ export default function PluginsPage() {
                 setTab(i)
             }
         }, TABS.map(x =>
-            h(Tab, { key: x.path, label: x.label }))),
+            h(Tab, { key: x.path, label: t(x.label) }))),
         h(Pane)
     )
 }

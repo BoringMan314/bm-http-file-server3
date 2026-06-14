@@ -3,6 +3,7 @@ import { httpStream, httpString, parseHttpUrl } from './util-http'
 import { reg } from './util-os'
 import { IS_WINDOWS } from './const'
 import { CFG, prefix } from './cross'
+import { ct } from './serverI18n'
 
 const outboundProxy = defineConfig(CFG.outbound_proxy, '', v => {
     if (!v) return
@@ -34,5 +35,5 @@ configReady.then(async (startedWithoutConfig) => {
         || !read.includes('=') && 'http://' + read // simpler form
     if (!url) return
     outboundProxy.set(url)
-    console.log("Detected proxy", read)
+    console.log(ct('detectedProxy'), read)
 })

@@ -18,6 +18,7 @@ import { storedMap } from './persistence'
 import _ from 'lodash'
 import { argv } from './argv'
 import { pipeline } from 'stream/promises'
+import { ct } from './serverI18n'
 
 const updateToBeta = defineConfig('update_to_beta', false)
 const autoCheckUpdate = defineConfig('auto_check_update', true)
@@ -40,7 +41,7 @@ configReady.then(lastCheckUpdate.ready).then(() => repeat(HOUR, () => {
 export const checkForUpdates = debounceAsync(async () => {
     try {
         const u = await getBestUpdate()
-        if (u) console.log("New version available", u.name)
+        if (u) console.log(ct('newVersionAvailable'), u.name)
         autoCheckUpdateResult.set(u)
         lastCheckUpdate.set(Date.now())
     }
@@ -88,7 +89,7 @@ export async function getVersions(filter?: (r: Release) => boolean, max=30) {
 }
 
 export async function getUpdates(strict=false) {
-    console.log("Checking for updates")
+    console.log(ct('checkingUpdates'))
     void getProjectInfo() // also check for alerts and print them asap in the console
     const stable: Release = prepareRelease(await getRepoInfo(HFS_REPO + '/releases/latest'))
     const includeBetas = updateToBeta.get() || RUNNING_BETA
@@ -127,7 +128,7 @@ export async function update(tagOrUrl: string='') {
             tagOrUrl = 'v' + tagOrUrl
         const update = !tagOrUrl ? await getBestUpdate()
             : await getRepoInfo(HFS_REPO + '/releases/tags/' + tagOrUrl).catch(e => {
-                if (e.message === '404') console.error("Version not found")
+                if (e.message === '404') console.error(ct('versionNotFound'))
                 else throw e
             }) as Release | undefined
         if (!update)
@@ -140,14 +141,14 @@ export async function update(tagOrUrl: string='') {
         url = asset.browser_download_url
     }
     if (url) {
-        console.log("Downloading", url)
+        console.log(ct('downloading'), url)
         const temp = LOCAL_UPDATE + '-temp'
         await rm(temp, { force: true })
         try {
             const stream = await httpStream(url)
             const total = Number(stream.headers['content-length']) || 0
             let downloadedSize = 0
-            const progress = total && setInterval(() => console.log("Download progress", formatPerc(downloadedSize / total)), 5_000)
+            const progress = total && setInterval(() => console.log(ct('downloadProgress'), formatPerc(downloadedSize / total)), 5_000)
             stream.on('data', chunk => downloadedSize += chunk.length)
             await pipeline(stream, createWriteStream(temp))
                 .finally(() => clearInterval(progress))
@@ -157,7 +158,7 @@ export async function update(tagOrUrl: string='') {
             throw "Download failed for " + url + prefix(' – ', e?.message)
         }
         await rename(temp, LOCAL_UPDATE)
-        console.debug("Download finished")
+        console.debug(ct('downloadFinished'))
     }
     const bin = process.execPath
     const binPath = dirname(bin)
@@ -193,17 +194,17 @@ export async function update(tagOrUrl: string='') {
                 try { retrySync(() => renameSync(newBin, join(binPath, binFile))) }
                 catch (e) {
                     try { renameSync(oldBin, bin) } // restore the service target because hfs.exe was already moved aside
-                    catch (rollbackError) { console.error("Couldn't restore original binary after failed update", rollbackError) }
+                    catch (rollbackError) { console.error(ct('restoreBinaryFailed'), rollbackError) }
                     throw e
                 }
-                console.log("Updated binary in place, exiting for process supervisor to restart")
+                console.log(ct('updatedBinaryRestart'))
                 return
             }
             // preserving the terminal requires a longer trip
-            console.log("Launching new version in background", newBinFile)
+            console.log(ct('launchingNewVersion'), newBinFile)
             spawnSync(cmdEscape(newBin), ['--updating', binFile, '--cwd .'], { shell: true, stdio: [0,1,2] }) // sync necessary to work on Mac by double-click
         })
-        console.log("Quitting")
+        console.log(ct('quitting'))
         setTimeout(() => quit(100), // non-zero, otherwise some service managers (like Shawl) won't restart the process.
             200) // give time to return (and caller to complete, eg: rest api to reply)
     }
@@ -218,7 +219,7 @@ if (argv.updating) { // we were launched with a temporary name, restore original
     const dest = join(dirname(bin), argv.updating)
     renameSync(bin, dest)
     // have to relaunch with the new name, or otherwise the next update will fail with EBUSY on hfs.exe
-    console.log(`Renamed binary file to "${argv.updating}" and now restarting`)
+    console.log(ct('renamedBinaryRestart', { name: argv.updating }))
     // if you change anything, be sure to test launching both double-clicking and in a terminal
     if (IS_WINDOWS) // windows-only; this method on mac+linux works only once, and without the console
         onProcessExit(() =>
@@ -229,7 +230,7 @@ if (argv.updating) { // we were launched with a temporary name, restore original
         // For the record, on mac you can: write "./hfs arg1 arg2" to /tmp/tmp.sh with 0o700, and then spawn "open -a Terminal /tmp/tmp.sh"
         try { writeFileSync(ARGS_FILE, JSON.stringify(['--updated', '--cwd', process.cwd()])) }
         catch {}
-        console.log('Open-ing')
+        console.log(ct('opening'))
         void open(dest)
     }
     else // linux and *nix on terminal: in interactive terminals, block this bridge process on the restarted hfs so the terminal session stays attached

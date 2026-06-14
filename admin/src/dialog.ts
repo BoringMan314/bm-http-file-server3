@@ -15,6 +15,7 @@ import { useDark } from './theme'
 import _ from 'lodash'
 import { err2msg } from './misc'
 import { useSnapState } from './state'
+import { t, useAdminLanguage } from './adminI18n'
 export * from '@hfs/shared/dialogs'
 
 dialogsDefaults.Container = function Container(d: DialogOptions) {
@@ -53,7 +54,7 @@ dialogsDefaults.Container = function Container(d: DialogOptions) {
         },
             d.icon && componentOrNode(d.icon),
             h(Box, { sx: { flex: 1, minWidth: 40, ml: 1 } }, componentOrNode(d.title)),
-            d.closable && h(IconBtn, { icon: Close, title: "Close", onClick: () => closeDialog() }),
+            d.closable && h(IconBtn, { icon: Close, title: t("Close"), onClick: () => closeDialog() }),
         ),
         h(DialogContent, {
             ref,
@@ -78,6 +79,12 @@ const type2ico = {
     info: Info,
     success: Check,
 }
+const type2title: Record<AlertType, string> = {
+    error: 'Error',
+    warning: 'Warning',
+    info: 'Info',
+    success: 'Success',
+}
 export function alertDialog(msg: ReactElement | string | Error, options?: AlertType | ({ type?:AlertType, icon?: ReactElement } & Partial<DialogOptions>)) {
     const opt = typeof options === 'string' ? { type: options } : (options ?? {})
     let { type='info', ...rest } = opt
@@ -91,7 +98,7 @@ export function alertDialog(msg: ReactElement | string | Error, options?: AlertT
         className: 'dialog-alert dialog-alert-' + type,
         icon: opt.icon ?? h(type2ico[type], { color: type }),
         onClose: promise.resolve,
-        title: _.upperFirst(type),
+        title: t(type2title[type]),
         dialogProps: { fullScreen: false },
         ...rest,
         Content() {
@@ -112,7 +119,7 @@ interface ConfirmOptions extends Omit<DialogOptions, 'Content'> {
     after?: FC<{ onClick: (result: any) => unknown }>
 }
 
-export function confirmDialog(msg: ReactNode, { href, trueText="Go", falseText="Don't", before, after,  ...rest }: ConfirmOptions={}) {
+export function confirmDialog(msg: ReactNode, { href, trueText=t("Go"), falseText=t("Don't"), before, after,  ...rest }: ConfirmOptions={}) {
     const promise = pendingPromise<boolean>()
     const dialog = newDialog({
         className: 'dialog-confirm',
@@ -198,14 +205,14 @@ export async function promptDialog(msg: ReactNode, { value='', field, save, addT
                 { k: 'text', label: null, autoFocus: true, ...field, before: h(Box, { sx: { mb: 2 } }, msg) },
             ],
             save: {
-                children: "Continue",
+                children: t("Continue"),
                 startIcon: h(Forward),
                 ...save,
             },
             saveOnEnter: true,
             barSx: { gap: 2 },
             addToBar: [
-                h(Button, { onClick: closeDialog }, "Cancel"),
+                h(Button, { onClick: closeDialog }, t("Cancel")),
                 ...addToBar,
             ],
             ...props.form,

@@ -7,8 +7,10 @@ import { IconBtn, useBreakpoint } from './mui'
 import { newDialog, prefix } from '@hfs/shared'
 import FilePicker from './FilePicker'
 import { apiCall } from './api'
+import { t, useAdminLanguage } from './adminI18n'
 
-export default function FileField({ value, onChange, files=true, folders=false, fileMask, defaultPath, title, ...props }: FieldProps<string>) {
+export default function FileField({value, onChange, files=true, folders=false, fileMask, defaultPath, title, ...props }: FieldProps<string>) {
+    useAdminLanguage()
     const large = useBreakpoint('md')
     return h(StringField, {
         ...props,
@@ -17,12 +19,12 @@ export default function FileField({ value, onChange, files=true, folders=false, 
         wrap: true,
         end: h(IconBtn, {
             icon: Eject,
-            title: "Browse files...",
+            title: t("Browse files..."),
             edge: 'end',
             sx: { mb: .5 },
             onClick() {
                 const { close } = newDialog({
-                    title: title ?? ((files ? "Pick a file" : "Pick a folder") + prefix(': ', fileMask)),
+                    title: title ?? ((files ? t("Pick a file") : t("Pick a folder")) + prefix(': ', fileMask)),
                     dialogProps: {
                         fullScreen: !large,
                         sx: { minWidth: 'min(90vw, 40em)', minHeight: 'calc(100vh - 9em)' }

@@ -12,6 +12,7 @@ import events from './events'
 import { copyFile } from 'fs/promises'
 import { argv } from './argv'
 import { statWithTimeout } from './util-files'
+import { ct } from './serverI18n'
 
 // keep definition of config properties
 const configProps: Record<string, { defaultValue?: unknown }> = {}
@@ -193,7 +194,7 @@ const saveDebounced = debounceAsync(async () => {
         ...state,
         version: VERSION,
         platform: `${process.platform}-${process.arch}${prefix('-', !IS_BINARY && basename(process.execPath))}`,
-    })).catch(err => console.error('Failed at saving config file, please ensure it is writable.', String(err)))
+    })).catch(err => console.error(ct('configSaveFailed'), String(err)))
 })
 export const saveConfigAsap = () => void saveDebounced()
 
@@ -202,16 +203,16 @@ function stringify(obj: any) {
 }
 
 let startedWithoutConfig = false
-console.log("Config", filePath)
+console.log(ct('config'), filePath)
 export const configFile = watchLoad(filePath, text => {
     startedWithoutConfig = !text
     try { return setConfig(yaml.parse(text, { uniqueKeys: false }) || {}, false) }
-    catch(e: any) { console.error("Error in", filePath, ':', e.message || String(e)) }
+    catch(e: any) { console.error(ct('errorIn'), filePath, ':', e.message || String(e)) }
 }, {
     immediateFirst: true,
     failedOnFirstAttempt(){
         startedWithoutConfig = true
-        console.log("No config file, using defaults")
+        console.log(ct('noConfig'))
         setTimeout(() => // this is called synchronously, but we need to call setConfig after first tick, when all configs are defined
             setConfig({}, false))
     }

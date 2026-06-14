@@ -10,9 +10,11 @@ import { TextEditor } from './TextEditor';
 import { state } from './state';
 import { DisplayField } from '@hfs/mui-grid-form'
 import { adminApis } from '../../src/adminApis'
+import { t, useAdminLanguage } from './adminI18n'
 
 export default function ConfigFilePage() {
-    state.title = "Config file"
+    useAdminLanguage()
+    state.title = t("Config file")
     const { data, reload, element } = useApiEx<typeof adminApis.get_config_text>('get_config_text', {})
     const [text, setText] = useState<string | undefined>()
     const [saved, setSaved] = useState<string | undefined>()
@@ -21,16 +23,16 @@ export default function ConfigFilePage() {
     useEffect(() => { saved !== undefined && setText(saved || '') }, [saved])
     return element || h(Fragment, {},
         h(Flex, { flexWrap: 'wrap', justifyContent: 'space-between' },
-            h(Btn, { icon: Download, onClick: exportConfig, disabled: !data }, "Export without passwords"),
+            h(Btn, { icon: Download, onClick: exportConfig, disabled: !data }, t("Export without passwords")),
             edit ? h(Fragment, {},
                 reloadBtn(reload),
                 h(IconBtn, {
                     icon: Save,
-                    title: "Save\n(ctrl+enter)",
+                    title: t("Save\\n(ctrl+enter)"),
                     modified: text !== saved,
                     onClick: save,
                 }),
-                h(Alert, { severity: 'warning', sx: { minWidth: '10em' } }, "Be careful, you can easily break things here"),
+                h(Alert, { severity: 'warning', sx: { minWidth: '10em' } }, t("Be careful, you can easily break things here")),
             ) : h(Btn, {
                 icon: Edit,
                 variant: 'outlined',
@@ -38,8 +40,8 @@ export default function ConfigFilePage() {
                     setEdit(true)
                     setTimeout(() => focusSelector('main textarea'), 500)
                 }
-            }, "Edit"),
-            h(Box, { sx: { flex: 1, minWidth: 'fit-content' } }, h(DisplayField, { label: "File path", value: data?.fullPath, size: 'small' }))
+            }, t("Edit")),
+            h(Box, { sx: { flex: 1, minWidth: 'fit-content' } }, h(DisplayField, { label: t("File path"), value: data?.fullPath, size: 'small' }))
         ),
         element || text !== undefined && // avoids bad undo behavior on start
             h(Box, { sx: { '& pre,& textarea': { wordBreak: 'break-all !important' } } }, // fixes long lines not wrapping at the right point when the side menu is visible

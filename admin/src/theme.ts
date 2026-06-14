@@ -5,6 +5,7 @@ import { createElement as h, useMemo } from 'react'
 import { state, useSnapState } from './state'
 import { Btn, BtnProps } from './mui'
 import { Brightness4, Brightness7 } from '@mui/icons-material'
+import { t, useAdminLanguage } from './adminI18n'
 
 export function useDark() {
     return useMediaQuery('(prefers-color-scheme: dark)')
@@ -50,6 +51,7 @@ export function useMyTheme() {
 }
 
 export function SwitchThemeBtn(props: BtnProps) {
+    useAdminLanguage()
     const { darkTheme } = useSnapState()
     const darkDetected = useDark()
     const currentlyDark = darkTheme ?? darkDetected
@@ -60,5 +62,5 @@ export function SwitchThemeBtn(props: BtnProps) {
             return state.darkTheme = darkDetected === v ? undefined : v
         },
         ...props,
-    }, currentlyDark ? "Light theme" : "Dark theme")
+    }, currentlyDark ? t('Light theme') : t('Dark theme'))
 }

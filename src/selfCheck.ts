@@ -5,6 +5,7 @@ import { isIP, isIPv6 } from 'net'
 import _ from 'lodash'
 import { findDefined, haveTimeout } from './cross'
 import { httpString } from './util-http'
+import { ct } from './serverI18n'
 
 let selfChecking = false
 
@@ -33,7 +34,7 @@ export async function selfCheck(url: string) {
         regexpSuccess: string
     }
     const prjInfo = await getProjectInfo()
-    console.log(`Checking server ${url}`)
+    console.log(ct('checkingServer', { url }))
     const parsed = new URL(url)
     const family = !isIP(parsed.hostname) ? undefined : isIPv6(parsed.hostname) ? 6 : 4
     try {
@@ -44,7 +45,7 @@ export async function selfCheck(url: string) {
                     if (!svc.url || svc.type) throw 'unsupported ' + svc.type // only default type supported for now
                     let { url: serviceUrl, body, regexpSuccess, regexpFailure, ...rest } = svc
                     const service = new URL(serviceUrl).hostname
-                    console.log('Trying external service', service)
+                    console.log(ct('tryingExternalService', { service }))
                     console.debug(svc)
                     body = applySymbols(body)
                     serviceUrl = applySymbols(serviceUrl)!

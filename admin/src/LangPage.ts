@@ -11,17 +11,19 @@ import { PageProps } from './App'
 import _ from 'lodash'
 import { alertDialog, toast } from './dialog'
 import { Field, SelectField } from '@hfs/mui-grid-form';
+import { t, useAdminLanguage } from './adminI18n'
 
-export default function LangPage({ setTitleSide }: PageProps) {
+export default function LangPage({setTitleSide }: PageProps) {
+    const { language } = useAdminLanguage()
     const { list, error, connecting, reload } = useApiList('get_langs')
     const langs = useMemo(() => ['en', ..._.uniq(list.map(x => x.code))], [list])
     setTitleSide(useMemo(() =>
-        h(Alert, { severity: 'info', sx: { display: { xs: 'none', sm: 'inherit' }  } }, "Translation is limited to the Front-end and doesn't apply to the Admin-panel"),
-        []))
+        h(Alert, { severity: 'info', sx: { display: { xs: 'none', sm: 'inherit' }  } }, t('languageFrontEndOnlyNotice')),
+        [language]))
     return h(Fragment, {},
         h(Box, { sx: { mt: 1, maxWidth: '50em', flex: 1, ...fillFlexParentSx } },
             h(Box, { sx: { mb: 1, display: 'flex' } },
-                h(Btn, { icon: Upload, onClick: add }, "Add"),
+                h(Btn, { icon: Upload, onClick: add }, t("Add")),
                 h(Box, { sx: { flex: 1 } }),
                 h(ForceLang, { langs }),
             ),
@@ -34,16 +36,19 @@ export default function LangPage({ setTitleSide }: PageProps) {
                 columns: [
                     {
                         field: 'code',
+                        headerName: t("code"),
                         width: 110,
                         valueFormatter: (value: string | undefined) => value?.toUpperCase(),
                     },
                     {
                         field: 'version',
+                        headerName: t("version"),
                         width: 120,
                         hideUnder: 'sm',
                     },
                     {
                         field: 'author',
+                        headerName: t("author"),
                         flex: 1,
                         hideUnder: 'sm',
                     }
@@ -51,13 +56,13 @@ export default function LangPage({ setTitleSide }: PageProps) {
                 actions: ({ row }) => [
                     h(IconBtn, {
                         icon: Delete,
-                        title: row.embedded ? "Cannot delete (embedded)" : "Delete",
-                        confirm: `Delete language code "${row.code}"?`,
+                        title: row.embedded ? t("Cannot delete (embedded)") : t("Delete"),
+                        confirm: t('Delete language code "{code}"?', { code: row.code }),
                         disabled: row.embedded,
                         async onClick() {
                             await apiCall('del_lang', _.pick(row, 'code'))
                             reload()
-                            toast("Deleted")
+                            toast(t("Deleted"))
                         }
                     }),
                 ]
@@ -74,7 +79,7 @@ export default function LangPage({ setTitleSide }: PageProps) {
             try {
                 await apiCall('add_langs', { langs })
                 reload()
-                toast("Loaded")
+                toast(t("Loaded"))
             }
             catch (e: any) {
                 await alertDialog(e)
@@ -104,8 +109,8 @@ function ForceLang({ langs }: { langs: string[] }) {
             finally { setSaving(undefined) }
         },
         options: [
-            { label: "Respect browser language", value: '' },
-            ...langs.map(x => ({ value: x, label: "Force language: " + x }))
+            { label: t("Respect browser language"), value: '' },
+            ...langs.map(x => ({ value: x, label: t("Force language: {code}", { code: x }) }))
         ]
     })
 }

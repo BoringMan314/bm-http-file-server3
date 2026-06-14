@@ -20,6 +20,7 @@ import { DESCRIPT_ION, DESCRIPT_ION_ALT, usingDescriptIon } from './comments'
 import { walkDir } from './walkDir'
 import { Readable } from 'node:stream'
 import { ctxAdminAccess } from './adminApis'
+import { ct } from './serverI18n'
 
 const showHiddenFiles = defineConfig('show_hidden_files', false)
 
@@ -196,7 +197,7 @@ async function setIsFolder(node: VfsNode) {
 export let vfs: VfsNode = {}
 defineConfig('vfs', vfs).sub(async x => {
     await reviewVfs(x)
-    console.log('VFS ready')
+    console.log(ct('vfsReady'))
 })
 
 async function reviewVfs(data=vfs) {
@@ -289,7 +290,7 @@ export function statusCodeForMissingPerm(node: VfsNode, perm: keyof VfsPerms, ct
             if (typeof who !== 'string' || who === WHO_ANY_ACCOUNT || who === WHO_ADMIN)
                 break
             if (!max--) {
-                console.error(`Endless loop in permission ${perm}=${node[perm] ?? defaultPerms[perm]} for ${node.url || getNodeName(node)}`)
+                console.error(ct('endlessPermissionLoop', { perm, value: String(node[perm] ?? defaultPerms[perm]), node: node.url || getNodeName(node) }))
                 return HTTP_SERVER_ERROR
             }
             cur = who
@@ -406,7 +407,7 @@ export async function* walkNode(parent: VfsNode, {
                     })
                 }
                 catch(e) {
-                    console.debug('walkNode', source, String(e)) // ENOTDIR, or lacking permissions
+                    console.debug(ct('walkNode'), source, String(e)) // ENOTDIR, or lacking permissions
                 }
             }
             finally {

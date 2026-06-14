@@ -7,6 +7,7 @@ import { createVerifierAndSalt, SRPParameters, SRPRoutines } from 'tssrp6a'
 import events from './events'
 import { getCurrentUsername } from './auth'
 import Koa from 'koa'
+import { ct } from './serverI18n'
 
 // for all the Account fields, falsy values must be equivalent to undefined. If this changes in the future, please adjust addAccount and setAccount
 export interface Account {
@@ -73,7 +74,7 @@ createAdminConfig.sub(v => {
 
 export async function createAdmin(password: string, username='admin') {
     const acc = await addAccount(username, { admin: true, password }, true)
-    console.log(acc ? "Account admin set" : "Something went wrong")
+    console.log(acc ? ct('accountAdminSet') : ct('somethingWentWrong'))
 }
 
 const srp6aNimbusRoutines = new SRPRoutines(new SRPParameters())
@@ -94,7 +95,7 @@ export async function updateAccount(account: Account, change: Partial<Account> |
         if (!v) delete account[k] // we consider all account fields, when falsy, as equivalent to be missing (so, default value applies)
     const { username, password } = account
     if (password) {
-        console.debug('Hashing password for', username)
+        console.debug(ct('hashingPasswordFor'), username)
         delete account.password
         const res = await createVerifierAndSalt(srp6aNimbusRoutines, username, password)
         saveSrpInfo(account, res.s, res.v)
@@ -103,7 +104,7 @@ export async function updateAccount(account: Account, change: Partial<Account> |
         account.belongs = wantArray(account.belongs)
         _.remove(account.belongs, b => {
             if (accounts.get().hasOwnProperty(b)) return
-            console.error(`Account ${username} belongs to non-existing ${b}`)
+            console.error(ct('accountBelongsNonExisting', { username, group: b }))
             return true
         })
         if (!account.belongs.length)

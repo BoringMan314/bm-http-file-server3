@@ -24,11 +24,13 @@ import { useWindowSize } from 'usehooks-ts'
 import { hTooltip } from './mui'
 import { PageProps } from './App'
 import { confirmDialog } from './dialog'
+import { t, useAdminLanguage } from './adminI18n'
 
 export interface MenuEntry {
     path: `/${string}`
     icon: SvgIconComponent
     label?: string
+    labelKey?: Parameters<typeof t>[0]
     title?: string
     comp: FC<PageProps>
     noPaddingOnMobile?: true
@@ -36,20 +38,21 @@ export interface MenuEntry {
 }
 
 export const mainMenu: MenuEntry[] = [
-    { path: '/', icon: Home, label: "Home", comp: HomePage },
-    { path: '/fs', icon: AccountTree, label: "Shared files", comp: VfsPage },
-    { path: '/accounts', icon: ManageAccounts, comp: AccountsPage },
-    { path: '/options', icon: Settings, comp: OptionsPage },
-    { path: '/internet', icon: Public, comp: InternetPage },
-    { path: '/monitoring', icon: Monitor, comp: MonitorPage, noPaddingOnMobile: true },
-    { path: '/logs', icon: History, comp: LogsPage, noPaddingOnMobile: true, subRoutes: true },
-    { path: '/language', icon: Translate, comp: LangPage },
-    { path: '/plugins', icon: Extension, comp: PluginsPage, noPaddingOnMobile: true, subRoutes: true },
-    { path: '/html', icon: Code, label: "Custom HTML", comp: CustomHtmlPage },
-    { path: '/logout', icon: Logout, comp: LogoutPage }
+    { path: '/', icon: Home, labelKey: 'home', comp: HomePage },
+    { path: '/fs', icon: AccountTree, labelKey: 'sharedFiles', comp: VfsPage },
+    { path: '/accounts', icon: ManageAccounts, labelKey: 'accounts', comp: AccountsPage },
+    { path: '/options', icon: Settings, labelKey: 'options', comp: OptionsPage },
+    { path: '/internet', icon: Public, labelKey: 'internet', comp: InternetPage },
+    { path: '/monitoring', icon: Monitor, labelKey: 'monitoring', comp: MonitorPage, noPaddingOnMobile: true },
+    { path: '/logs', icon: History, labelKey: 'logs', comp: LogsPage, noPaddingOnMobile: true, subRoutes: true },
+    { path: '/language', icon: Translate, labelKey: 'language', comp: LangPage },
+    { path: '/plugins', icon: Extension, labelKey: 'plugins', comp: PluginsPage, noPaddingOnMobile: true, subRoutes: true },
+    { path: '/html', icon: Code, labelKey: 'customHtml', comp: CustomHtmlPage },
+    { path: '/logout', icon: Logout, labelKey: 'logout', comp: LogoutPage }
 ]
 
 export default function Menu({ onSelect, itemTitle }: { onSelect: ()=>void, itemTitle: (idx: number) => string }) {
+    useAdminLanguage()
     const { VERSION } = getHFS()
     const logo = 'hfs-logo.svg'
     const short = useWindowSize().height < 700
@@ -68,7 +71,7 @@ export default function Menu({ onSelect, itemTitle }: { onSelect: ()=>void, item
                 h(Box, {
                     sx: { color: 'primary.contrastText', fontSize: 'min(3rem, max(5vw, 4vh))', cursor: 'pointer' },
                     async onClick() {
-                        if (await confirmDialog("Open HFS website?"))
+                        if (await confirmDialog(t('Open HFS website?')))
                             window.open(WEBSITE)
                     }
                 }, 'HFS'),
@@ -96,7 +99,7 @@ export default function Menu({ onSelect, itemTitle }: { onSelect: ()=>void, item
 }
 
 export function getMenuLabel(it: MenuEntry) {
-    return it && (it.label ?? _.capitalize(it.path.slice(1)))
+    return it && (it.labelKey ? t(it.labelKey) : it.label ?? _.capitalize(it.path.slice(1)))
 }
 
 export function matchesMenuPath(it: MenuEntry, path: string) {

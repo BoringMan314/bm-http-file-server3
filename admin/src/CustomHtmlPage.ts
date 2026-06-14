@@ -14,13 +14,10 @@ import { state, useSnapState } from './state'
 import { PageProps } from './App'
 import { switchBtn } from './VerticalSwitch';
 import { adminApis } from '../../src/adminApis'
+import { t, useAdminLanguage } from './adminI18n'
 
-const names: any = {
-    top: "Top of HTML Body",
-    bottom: "Bottom of HTML Body",
-}
-
-export default function CustomHtmlPage({ setTitleSide }: PageProps) {
+export default function CustomHtmlPage({setTitleSide }: PageProps) {
+    const { language } = useAdminLanguage()
     const { data, reload } = useApiEx<typeof adminApis.get_custom_html>('get_custom_html')
     const { customHtmlSection: section } = useSnapState()
     const [all, setAll] = useState<Dict<string>>({})
@@ -35,25 +32,29 @@ export default function CustomHtmlPage({ setTitleSide }: PageProps) {
         const keys = _.sortBy(Object.keys(all), isNumeric) // http codes at the bottom
         if (keys.length && !keys.includes(section))
             state.customHtmlSection = _.findKey(all, Boolean) || keys?.[0] || '' // prefer any key with content
+        const names: Record<string, string> = {
+            top: t("Top of HTML Body"),
+            bottom: t("Bottom of HTML Body"),
+        }
         return keys.map(x => ({
             value: x,
             label: (names[x] || prefix('HTTP ', HTTP_MESSAGES[x as any]) || _.startCase(x)) + (all[x]?.trim() ? ' *' : '')
         }))
-    }, [useDebounce(all, 500)])
+    }, [useDebounce(all, 500), language])
     const anyChange = useMemo(() => !_.isEqualWith(saved, all, (a,b) => !a && !b || undefined),
         [saved, all])
     const [enabled, setEnabled] = useState<boolean>()
     setTitleSide(useMemo(() => h(Box, { sx: { display: { xs: 'none', md: 'block' }  } },
         h(Alert, { severity: 'info' },
-            md("Add HTML code to some parts of the Front-end. It's saved to file `custom.html`, that you can edit directly with your editor of choice. "),
-            wikiLink('customization', "More help")
+            md(t("Add HTML code to some parts of the Front-end. It's saved to file `custom.html`, that you can edit directly with your editor of choice. ")),
+            wikiLink('customization', t("More help"))
         ),
-        h(Alert, { severity: 'info' }, md("To customize icons "), wikiLink('customization#icons', "read documentation") ),
-    ), []))
+        h(Alert, { severity: 'info' }, md(t("To customize icons ")), wikiLink('customization#icons', t("read documentation")) ),
+    ), [language]))
     return h(Fragment, {},
         h(Box, { sx: { display: 'flex', alignItems: 'center', gap: 1, mb: 1 } },
             h(SelectField as Field<string>, {
-                label: "Section",
+                label: t("Section"),
                 value: section,
                 options,
                 onChange: v => state.customHtmlSection = v
@@ -62,12 +63,12 @@ export default function CustomHtmlPage({ setTitleSide }: PageProps) {
             h(IconBtn, {
                 ref: useCtrlShortcutButton(['s', 'Enter']).ref,
                 icon: Save,
-                title: "Save\n(ctrl+s)",
+                title: t("Save\\n(ctrl+s)"),
                 modified: anyChange,
                 doneAnimation: true,
                 onClick: save,
             }),
-            hTooltip("Enable all sections", undefined, switchBtn(enabled, async v => {
+            hTooltip(t("Enable all sections"), undefined, switchBtn(enabled, async v => {
                 await apiCall('set_config', { values: { [CFG.disable_custom_html]: !v } })
                 setEnabled(v)
             })),

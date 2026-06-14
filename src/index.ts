@@ -28,11 +28,12 @@ import { rootsMiddleware } from './roots'
 import events from './events'
 import { trackIpsMw } from './ips'
 import './outboundProxy'
+import { ct } from './serverI18n'
 
 ok(_.intersection(Object.keys(frontEndApis), Object.keys(adminApis)).length === 0) // they share same endpoints, don't clash
 
 if (new Version(process.versions.node).olderThan('18.15.0')) {
-    console.error("Node.js 18.15+ is required, please update")
+    console.error(ct('nodeRequired'))
     process.exit(2)
 }
 
@@ -69,12 +70,12 @@ function errorHandler(err: Error & { code?: string, path?: string }) {
         || code === 'ERR_STREAM_WRITE_AFTER_END' // happens disconnecting uploads, don't care
         || code === 'ERR_STREAM_PREMATURE_CLOSE' // happens when many files are sent (not locally), but I checked that the files are written completely. Introduced after node18.5.0 and is thrown by pipeline() used by PUT method handler.
         || code?.startsWith('HPE')) return // malformed client/probe HTTP parser errors, not internal failures
-    console.error('Server error', err)
+    console.error(ct('serverError'), err)
 }
 
 process.on('uncaughtException', (err: any) => {
     if (err.syscall !== 'watch' && err.code !== 'ECONNRESET' && err.code !== 'EIO') // EIO seems to happen when the terminal is closed
-        try { console.error("Uncaught:", err) }
+        try { console.error(ct('uncaught'), err) }
         catch {} // in case we are writing to a closed terminal, we may throw with "write eio at afterwritedispatched", causing an infinite loop
 })
 // this warning is scaring users, and has been removed in node 20.12.0 https://github.com/nodejs/node/pull/51204

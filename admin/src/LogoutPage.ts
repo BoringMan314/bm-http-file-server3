@@ -8,33 +8,35 @@ import { useSnapState } from './state'
 import { HTTP_UNAUTHORIZED } from './misc'
 import { Logout, PowerSettingsNew } from '@mui/icons-material'
 import { Btn } from './mui'
+import { t, useAdminLanguage } from './adminI18n'
 
 export default function LogoutPage() {
+    useAdminLanguage()
     const { element } = useApiEx('get_config', { only: [] }) // sort of noop, just to get the 'element' part
     const { username } = useSnapState()
     if (element)
         return element
     return h(Box, { sx: { display: 'flex', flexDirection:'column', alignItems: 'flex-start', gap: 2 } },
-        !username ? h(Alert, { severity: 'info' }, "You are not logged in, because authentication is not required on localhost")
+        !username ? h(Alert, { severity: 'info' }, t("You are not logged in, because authentication is not required on localhost"))
             : h(Fragment, {},
-                "You are logged in as: " + username,
+                t('You are logged in as: {username}', { username }),
                 h(Btn, {
                     icon: Logout,
                     size: 'large',
                     onClick: () => apiCall('logout').catch(err => // we expect 401
                             err.code !== HTTP_UNAUTHORIZED && alertDialog(err))
-                }, "I want to logout")
+                }, t("I want to logout"))
             ),
         h(Btn, {
             icon: PowerSettingsNew,
             size: 'large',
             color: 'warning',
-            confirm: "Stopping the server, this interface won't respond anymore",
+            confirm: t("Stopping the server, this interface won't respond anymore"),
             async onClick() {
                 await apiCall('quit')
-                await alertDialog("Good-bye", 'success')
+                await alertDialog(t("Good-bye"), 'success')
                 location.reload()
             },
-        }, "Quit HFS")
+        }, t("Quit HFS"))
     )
 }
